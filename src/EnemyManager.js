@@ -72,11 +72,11 @@ export class EnemyManager {
     hbFill.position.z = 0.01;
     group.add(hbFill);
 
-    // Spawn from one direction (positive Z — the front gate approach)
-    // Spread across a lane with some randomness
+    // Spawn from one direction (negative Z — approaching from the front)
+    // The camera looks toward -Z, so enemies come from that direction
     const xSpread = (Math.random() - 0.5) * this.spawnWidth;
     const zJitter = Math.random() * 5;
-    group.position.set(xSpread, 0, this.spawnDistance + zJitter);
+    group.position.set(xSpread, 0, -(this.spawnDistance + zJitter));
 
     this.scene.add(group);
 

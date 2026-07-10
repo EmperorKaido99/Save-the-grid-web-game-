@@ -14,7 +14,11 @@ export class Player {
     this.velocity = new THREE.Vector3();
 
     // Where the player is aiming (world position on ground)
-    this.aimPoint = new THREE.Vector3();
+    // Default to in front of starting position so first shot isn't random
+    this.aimPoint = new THREE.Vector3(0, 0, -5);
+
+    // Reusable raycaster (avoid allocating per frame)
+    this._raycaster = new THREE.Raycaster();
 
     // Build player mesh — capsule-ish figure (worker in hard hat)
     this.group = new THREE.Group();
@@ -60,6 +64,12 @@ export class Player {
 
     // Walking bob state
     this._bobTime = 0;
+    this._bobOffset = 0;
+
+    // Store base Y positions for all children so bob can offset them
+    this.group.children.forEach(child => {
+      child.userData.baseY = child.position.y;
+    });
 
     this.group.position.set(0, 0, 8);
     scene.add(this.group);
@@ -109,12 +119,11 @@ export class Player {
 
     // --- Aim toward mouse (raycast onto ground) ---
     if (camera && ground) {
-      const raycaster = new THREE.Raycaster();
-      raycaster.setFromCamera(
+      this._raycaster.setFromCamera(
         { x: input.mouse.ndcX, y: input.mouse.ndcY },
         camera
       );
-      const hits = raycaster.intersectObject(ground);
+      const hits = this._raycaster.intersectObject(ground);
       if (hits.length > 0) {
         this.aimPoint.copy(hits[0].point);
         // Rotate player to face aim point
@@ -127,14 +136,19 @@ export class Player {
     // Smooth rotation toward aim direction
     this.group.rotation.y = this.rotationY;
 
-    // --- Walking bob animation ---
+    // --- Walking bob (offset children, NOT group.position.y, so camera/collision stay flat) ---
     if (currentSpeed > 0.5) {
       this._bobTime += dt * currentSpeed * 1.5;
-      this.group.position.y = Math.abs(Math.sin(this._bobTime)) * 0.12;
+      this._bobOffset = Math.abs(Math.sin(this._bobTime)) * 0.12;
     } else {
       this._bobTime = 0;
-      this.group.position.y = THREE.MathUtils.lerp(this.group.position.y, 0, 10 * dt);
+      this._bobOffset = THREE.MathUtils.lerp(this._bobOffset, 0, 10 * dt);
     }
+    this.group.children.forEach(child => {
+      if (child.userData.baseY !== undefined) {
+        child.position.y = child.userData.baseY + this._bobOffset;
+      }
+    });
 
     // --- Cooldown ---
     if (this.cooldownTimer > 0) {

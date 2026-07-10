@@ -273,6 +273,9 @@ export class Game {
       this.enemies.spawn(typeId);
     }
 
+    // Camera follow first — so player raycasting uses up-to-date camera
+    this.cameras.followPlayer(this.player.position, this.player.rotationY, dt);
+
     // Update player (pass camera + ground for mouse-aim raycasting)
     this.player.update(this.input, dt, this.cameras.active, this.ground);
 
@@ -289,7 +292,7 @@ export class Game {
       }
     }
 
-    // Update enemies (pass alive fences too — they act as barriers enemies must break)
+    // Update enemies
     this.enemies.update(dt, this.defenses.aliveDefenses, STATION);
 
     // Update defenses (auto-attack + station healing)
@@ -301,9 +304,6 @@ export class Game {
       this.economy.earn(e.def.reward);
       e.group.visible = false;
     }
-
-    // Camera follow
-    this.cameras.followPlayer(this.player.position, this.player.rotationY, dt);
 
     // Check station death
     if (STATION.health <= 0) {
