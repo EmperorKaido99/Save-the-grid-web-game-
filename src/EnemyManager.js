@@ -5,7 +5,8 @@ export class EnemyManager {
   constructor(scene) {
     this.scene = scene;
     this.enemies = [];
-    this.spawnRadius = 50;
+    this.spawnDistance = 50;   // how far from station
+    this.spawnWidth = 40;     // lateral spread
   }
 
   spawn(typeId) {
@@ -71,13 +72,11 @@ export class EnemyManager {
     hbFill.position.z = 0.01;
     group.add(hbFill);
 
-    // Random spawn position around map edge
-    const angle = Math.random() * Math.PI * 2;
-    group.position.set(
-      Math.cos(angle) * this.spawnRadius,
-      0,
-      Math.sin(angle) * this.spawnRadius
-    );
+    // Spawn from one direction (positive Z — the front gate approach)
+    // Spread across a lane with some randomness
+    const xSpread = (Math.random() - 0.5) * this.spawnWidth;
+    const zJitter = Math.random() * 5;
+    group.position.set(xSpread, 0, this.spawnDistance + zJitter);
 
     this.scene.add(group);
 

@@ -3,10 +3,18 @@ import * as THREE from 'three';
 export class Player {
   constructor(scene) {
     this.speed = 10;
+    this.acceleration = 40;
+    this.friction = 12;
     this.stunGunRange = 12;
     this.stunGunDamage = 18;
     this.stunGunCooldown = 0.25;
     this.cooldownTimer = 0;
+
+    // Velocity for smooth movement
+    this.velocity = new THREE.Vector3();
+
+    // Where the player is aiming (world position on ground)
+    this.aimPoint = new THREE.Vector3();
 
     // Build player mesh — capsule-ish figure (worker in hard hat)
     this.group = new THREE.Group();
@@ -50,10 +58,12 @@ export class Player {
     this.flash.visible = false;
     this.group.add(this.flash);
 
+    // Walking bob state
+    this._bobTime = 0;
+
     this.group.position.set(0, 0, 8);
     scene.add(this.group);
 
-    // Movement direction
     this.rotationY = 0;
   }
 
@@ -61,26 +71,72 @@ export class Player {
     return this.group.position;
   }
 
-  update(input, dt) {
-    // WASD movement
-    const moveDir = new THREE.Vector3();
-    if (input.isKeyDown('KeyW') || input.isKeyDown('ArrowUp')) moveDir.z -= 1;
-    if (input.isKeyDown('KeyS') || input.isKeyDown('ArrowDown')) moveDir.z += 1;
-    if (input.isKeyDown('KeyA') || input.isKeyDown('ArrowLeft')) moveDir.x -= 1;
-    if (input.isKeyDown('KeyD') || input.isKeyDown('ArrowRight')) moveDir.x += 1;
+  update(input, dt, camera, ground) {
+    // --- Movement with acceleration/friction ---
+    const inputDir = new THREE.Vector3();
+    if (input.isKeyDown('KeyW') || input.isKeyDown('ArrowUp')) inputDir.z -= 1;
+    if (input.isKeyDown('KeyS') || input.isKeyDown('ArrowDown')) inputDir.z += 1;
+    if (input.isKeyDown('KeyA') || input.isKeyDown('ArrowLeft')) inputDir.x -= 1;
+    if (input.isKeyDown('KeyD') || input.isKeyDown('ArrowRight')) inputDir.x += 1;
 
-    if (moveDir.length() > 0) {
-      moveDir.normalize();
-      this.group.position.addScaledVector(moveDir, this.speed * dt);
-      this.rotationY = Math.atan2(moveDir.x, moveDir.z);
-      this.group.rotation.y = this.rotationY;
+    if (inputDir.length() > 0) {
+      inputDir.normalize();
+      // Accelerate toward input direction
+      this.velocity.x += inputDir.x * this.acceleration * dt;
+      this.velocity.z += inputDir.z * this.acceleration * dt;
     }
+
+    // Apply friction (deceleration when no input or always)
+    const frictionFactor = Math.exp(-this.friction * dt);
+    this.velocity.x *= frictionFactor;
+    this.velocity.z *= frictionFactor;
+
+    // Clamp to max speed
+    const currentSpeed = Math.sqrt(this.velocity.x ** 2 + this.velocity.z ** 2);
+    if (currentSpeed > this.speed) {
+      const scale = this.speed / currentSpeed;
+      this.velocity.x *= scale;
+      this.velocity.z *= scale;
+    }
+
+    // Apply velocity
+    this.group.position.x += this.velocity.x * dt;
+    this.group.position.z += this.velocity.z * dt;
 
     // Clamp to play area
     this.group.position.x = THREE.MathUtils.clamp(this.group.position.x, -44, 44);
     this.group.position.z = THREE.MathUtils.clamp(this.group.position.z, -44, 44);
 
-    // Cooldown
+    // --- Aim toward mouse (raycast onto ground) ---
+    if (camera && ground) {
+      const raycaster = new THREE.Raycaster();
+      raycaster.setFromCamera(
+        { x: input.mouse.ndcX, y: input.mouse.ndcY },
+        camera
+      );
+      const hits = raycaster.intersectObject(ground);
+      if (hits.length > 0) {
+        this.aimPoint.copy(hits[0].point);
+        // Rotate player to face aim point
+        const dx = this.aimPoint.x - this.group.position.x;
+        const dz = this.aimPoint.z - this.group.position.z;
+        this.rotationY = Math.atan2(dx, dz);
+      }
+    }
+
+    // Smooth rotation toward aim direction
+    this.group.rotation.y = this.rotationY;
+
+    // --- Walking bob animation ---
+    if (currentSpeed > 0.5) {
+      this._bobTime += dt * currentSpeed * 1.5;
+      this.group.position.y = Math.abs(Math.sin(this._bobTime)) * 0.12;
+    } else {
+      this._bobTime = 0;
+      this.group.position.y = THREE.MathUtils.lerp(this.group.position.y, 0, 10 * dt);
+    }
+
+    // --- Cooldown ---
     if (this.cooldownTimer > 0) {
       this.cooldownTimer -= dt;
     }
@@ -99,13 +155,35 @@ export class Player {
     return true;
   }
 
+  // Get the point the stun gun fires toward (aim-based)
+  getStunTarget() {
+    const dir = new THREE.Vector3(
+      this.aimPoint.x - this.group.position.x,
+      0,
+      this.aimPoint.z - this.group.position.z
+    );
+    if (dir.length() < 0.1) {
+      // Fallback: fire forward
+      dir.set(0, 0, -1).applyAxisAngle(new THREE.Vector3(0, 1, 0), this.rotationY);
+    } else {
+      dir.normalize();
+    }
+    const stunPoint = this.group.position.clone().add(
+      dir.multiplyScalar(this.stunGunRange * 0.5)
+    );
+    stunPoint.y = 1;
+    return stunPoint;
+  }
+
   hide() { this.group.visible = false; }
   show() { this.group.visible = true; }
 
   reset() {
     this.group.position.set(0, 0, 8);
+    this.velocity.set(0, 0, 0);
     this.rotationY = 0;
     this.group.rotation.y = 0;
     this.cooldownTimer = 0;
+    this._bobTime = 0;
   }
 }

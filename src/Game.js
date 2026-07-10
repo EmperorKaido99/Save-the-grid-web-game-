@@ -273,18 +273,13 @@ export class Game {
       this.enemies.spawn(typeId);
     }
 
-    // Update player
-    this.player.update(this.input, dt);
+    // Update player (pass camera + ground for mouse-aim raycasting)
+    this.player.update(this.input, dt, this.cameras.active, this.ground);
 
-    // Player shooting
+    // Player shooting — fires toward mouse aim point
     if (this.input.mouse.clicked) {
       if (this.player.tryFire()) {
-        const forward = new THREE.Vector3(0, 0, -1);
-        forward.applyAxisAngle(new THREE.Vector3(0, 1, 0), this.player.rotationY);
-        const stunPoint = this.player.position.clone().add(
-          forward.multiplyScalar(this.player.stunGunRange * 0.5)
-        );
-        stunPoint.y = 1;
+        const stunPoint = this.player.getStunTarget();
 
         this.enemies.damageInRadius(
           stunPoint, this.player.stunGunRange * 0.6, this.player.stunGunDamage
