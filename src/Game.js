@@ -61,6 +61,7 @@ export class Game {
 
     // Stun gun zap visuals
     this._zapLines = [];
+    this._tabHeld = false;
 
     // Selection highlight ring
     const selGeo = new THREE.RingGeometry(2.2, 2.5, 24);
@@ -273,22 +274,53 @@ export class Game {
       this.enemies.spawn(typeId);
     }
 
+    // Switch character with Tab
+    if (this.input.keys['Tab'] && !this._tabHeld) {
+      this._tabHeld = true;
+      const newChar = this.player.switchCharacter();
+      this.ui.updateActiveCharacter(newChar);
+    }
+    if (!this.input.keys['Tab']) this._tabHeld = false;
+
     // Camera follow first — so player raycasting uses up-to-date camera
     this.cameras.followPlayer(this.player.position, this.player.rotationY, dt);
 
     // Update player (pass camera + ground for mouse-aim raycasting)
     this.player.update(this.input, dt, this.cameras.active, this.ground);
 
-    // Player shooting — fires toward mouse aim point
-    if (this.input.mouse.clicked) {
-      if (this.player.tryFire()) {
-        const stunPoint = this.player.getStunTarget();
-
-        this.enemies.damageInRadius(
-          stunPoint, this.player.stunGunRange * 0.6, this.player.stunGunDamage
+    // Player abilities — depends on active character
+    const stats = this.player.stats;
+    if (this.player.activeChar === 'COMBAT') {
+      // Combat Worker: stun gun
+      if (this.input.mouse.clicked) {
+        if (this.player.tryFire()) {
+          const stunPoint = this.player.getStunTarget();
+          this.enemies.damageInRadius(
+            stunPoint, stats.abilityRange * 0.6, stats.abilityDamage
+          );
+          this._createZap(this.player.position, stunPoint);
+        }
+      }
+    } else {
+      // Repair Worker: hold click to repair nearby defense/station, weak stun on click
+      this.player.isRepairing = this.input.mouse.down;
+      if (this.player.isRepairing) {
+        const repaired = this.player.tryRepair(
+          this.defenses.aliveDefenses, STATION, dt
         );
-
-        this._createZap(this.player.position, stunPoint);
+        if (repaired) {
+          this.ui.showRepairEffect();
+        }
+      }
+      // Weak self-defense stun on click
+      if (this.input.mouse.clicked) {
+        if (this.player.tryFire()) {
+          const stunPoint = this.player.getStunTarget();
+          this.enemies.damageInRadius(
+            stunPoint, stats.abilityRange * 0.5, stats.abilityDamage
+          );
+          this._createZap(this.player.position, stunPoint);
+        }
       }
     }
 

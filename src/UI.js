@@ -20,6 +20,7 @@ export class UI {
         <div class="hud-item" id="wave-display">Wave 1 / 5</div>
         <div class="hud-item" id="station-hp">Station: 500 / 500</div>
         <div class="hud-item" id="load-stage">Stage 0</div>
+        <div class="hud-item" id="active-char" style="display:none">Combat Worker</div>
       </div>
     `;
     document.body.appendChild(this.hud);
@@ -117,11 +118,18 @@ export class UI {
     this.endScreen.style.display = 'none';
     document.body.appendChild(this.endScreen);
 
+    // --- Repair effect indicator ---
+    this.repairIndicator = this._div('repair-indicator');
+    this.repairIndicator.textContent = 'REPAIRING...';
+    this.repairIndicator.style.display = 'none';
+    document.body.appendChild(this.repairIndicator);
+
     // --- Controls Help ---
     this.controlsHelp = this._div('controls-help');
     this.controlsHelp.innerHTML = `
       <div><strong>God Mode:</strong> Select defense type | Click grid to place | Click existing defense to upgrade</div>
-      <div><strong>Action Mode:</strong> WASD move | Click to stun | Defend the station!</div>
+      <div><strong>Action Mode:</strong> WASD move | Click to fire | Tab to switch character</div>
+      <div><strong>Combat Worker:</strong> Stun gun | <strong>Repair Worker:</strong> Hold click near defense/station to repair</div>
     `;
     document.body.appendChild(this.controlsHelp);
   }
@@ -188,6 +196,28 @@ export class UI {
 
   showCrosshair() {
     this.crosshair.style.display = 'block';
+    document.getElementById('active-char').style.display = 'block';
+  }
+
+  updateActiveCharacter(charId) {
+    const names = { COMBAT: 'Combat Worker', REPAIR: 'Repair Worker' };
+    const colors = { COMBAT: '#4488ff', REPAIR: '#ff8844' };
+    const el = document.getElementById('active-char');
+    el.textContent = names[charId] || charId;
+    el.style.color = colors[charId] || '#fff';
+    el.style.borderColor = colors[charId] || '#fff';
+
+    // Update crosshair color
+    this.crosshair.style.color = charId === 'REPAIR'
+      ? 'rgba(68, 255, 136, 0.7)' : 'rgba(68, 221, 255, 0.7)';
+  }
+
+  showRepairEffect() {
+    this.repairIndicator.style.display = 'block';
+    clearTimeout(this._repairTimeout);
+    this._repairTimeout = setTimeout(() => {
+      this.repairIndicator.style.display = 'none';
+    }, 200);
   }
 
   // --- Upgrade Panel ---

@@ -7,6 +7,8 @@ export class InputManager {
 
     window.addEventListener('keydown', (e) => {
       this.keys[e.code] = true;
+      // Prevent Tab from switching browser focus
+      if (e.code === 'Tab') e.preventDefault();
     });
     window.addEventListener('keyup', (e) => {
       this.keys[e.code] = false;

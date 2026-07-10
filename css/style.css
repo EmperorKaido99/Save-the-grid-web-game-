@@ -434,6 +434,21 @@ canvas {
   margin: 6px 0;
 }
 
+/* ─── Repair Indicator ─── */
+.repair-indicator {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -70%);
+  font-size: 14px;
+  font-weight: 700;
+  color: #44ff88;
+  text-shadow: 0 0 10px rgba(68, 255, 136, 0.5);
+  pointer-events: none;
+  z-index: 15;
+  letter-spacing: 2px;
+}
+
 /* ─── Controls Help ─── */
 .controls-help {
   position: fixed;
