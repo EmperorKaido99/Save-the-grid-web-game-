@@ -1,0 +1,356 @@
+import * as THREE from 'three';
+import { createScene, STATION } from './Scene.js';
+import { CameraController } from './CameraController.js';
+import { InputManager } from './InputManager.js';
+import { Player } from './Player.js';
+import { Grid } from './Grid.js';
+import { Economy } from './Economy.js';
+import { EnemyManager } from './EnemyManager.js';
+import { DefenseManager } from './DefenseManager.js';
+import { WaveManager } from './WaveManager.js';
+import { UI } from './UI.js';
+import { getRandomFact } from './data/funFacts.js';
+import { DEFENSE_TYPES, getUpgradeCost } from './data/defenses.js';
+
+const State = {
+  GOD_MODE: 'GOD_MODE',
+  WAVE_ACTIVE: 'WAVE_ACTIVE',
+  WAVE_COMPLETE: 'WAVE_COMPLETE',
+  GAME_OVER: 'GAME_OVER',
+  VICTORY: 'VICTORY',
+};
+
+export class Game {
+  constructor() {
+    // Renderer
+    this.renderer = new THREE.WebGLRenderer({ antialias: true });
+    this.renderer.setSize(window.innerWidth, window.innerHeight);
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    this.renderer.shadowMap.enabled = true;
+    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    document.getElementById('game-container').appendChild(this.renderer.domElement);
+
+    // Core systems
+    this.scene = createScene();
+    this.cameras = new CameraController(this.renderer.domElement);
+    this.input = new InputManager(this.renderer.domElement);
+    this.player = new Player(this.scene);
+    this.grid = new Grid(this.scene);
+    this.economy = new Economy(80);
+    this.enemies = new EnemyManager(this.scene);
+    this.defenses = new DefenseManager(this.scene);
+    this.waves = new WaveManager();
+    this.ui = new UI();
+
+    // State
+    this.state = State.GOD_MODE;
+    this.defenseCount = 0;
+    this.selectedUpgradeTarget = null; // defense being viewed for upgrade
+
+    // Ground reference for raycasting
+    this.ground = this.scene.getObjectByName('ground');
+
+    // UI callbacks
+    this.ui.onStartWave = () => this._startWave();
+    this.ui.onSelectDefense = () => {
+      // Deselect upgrade target when selecting a new placement type
+      this.selectedUpgradeTarget = null;
+      this.ui.hideUpgradePanel();
+    };
+    this.ui.onUpgrade = () => this._upgradeSelected();
+
+    // Stun gun zap visuals
+    this._zapLines = [];
+
+    // Selection highlight ring
+    const selGeo = new THREE.RingGeometry(2.2, 2.5, 24);
+    const selMat = new THREE.MeshBasicMaterial({
+      color: 0xffcc44, transparent: true, opacity: 0.5, side: THREE.DoubleSide,
+    });
+    this._selectionRing = new THREE.Mesh(selGeo, selMat);
+    this._selectionRing.rotation.x = -Math.PI / 2;
+    this._selectionRing.position.y = 0.15;
+    this._selectionRing.visible = false;
+    this.scene.add(this._selectionRing);
+
+    this._enterGodMode();
+
+    // Handle resize
+    window.addEventListener('resize', () => {
+      this.renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+  }
+
+  // --- State transitions ---
+
+  _enterGodMode() {
+    this.state = State.GOD_MODE;
+    this.cameras.setGodMode();
+    this.grid.show();
+    this.defenses.showRanges();
+    this.player.hide();
+    this.ui.showGodPanel();
+    this.ui.updateWave(this.waves.waveNumber, this.waves.totalWaves);
+    this.selectedUpgradeTarget = null;
+    this._selectionRing.visible = false;
+  }
+
+  _startWave() {
+    if (!this.waves.hasMoreWaves) return;
+
+    this.state = State.WAVE_ACTIVE;
+    this.cameras.setCharacterMode();
+    this.grid.hide();
+    this.defenses.hideRanges();
+    this.player.show();
+    this.ui.hideGodPanel();
+    this.ui.showCrosshair();
+    this.selectedUpgradeTarget = null;
+    this._selectionRing.visible = false;
+
+    const wave = this.waves.currentWave;
+    this.ui.showAnnouncement(`Wave ${wave.id}: ${wave.name}`, wave.announcement);
+    this.waves.startWave();
+  }
+
+  _waveComplete() {
+    this.state = State.WAVE_COMPLETE;
+    this.enemies.clearAll();
+
+    const bonus = 30 + this.waves.waveNumber * 10;
+    this.economy.earn(bonus);
+    this.ui.showAnnouncement('Wave Clear!', `+${bonus} KW bonus`);
+
+    if (this.waves.isLastWave) {
+      setTimeout(() => this._victory(), 2500);
+    } else {
+      this.waves.advanceWave();
+      setTimeout(() => this._enterGodMode(), 2500);
+    }
+  }
+
+  _gameOver() {
+    this.state = State.GAME_OVER;
+    this.ui.showEndScreen(false, {
+      waves: this.waves.waveNumber - 1,
+      earned: this.economy.totalEarned,
+      defenses: this.defenseCount,
+    });
+  }
+
+  _victory() {
+    this.state = State.VICTORY;
+    this.ui.showEndScreen(true, {
+      waves: this.waves.totalWaves,
+      earned: this.economy.totalEarned,
+      defenses: this.defenseCount,
+    });
+  }
+
+  _upgradeSelected() {
+    const d = this.selectedUpgradeTarget;
+    if (!d || !d.alive) return;
+
+    const cost = getUpgradeCost(d.type, d.level);
+    if (cost === null) return; // already max
+    if (!this.economy.canAfford(cost)) return;
+
+    this.economy.spend(cost);
+    this.defenses.upgrade(d);
+
+    // Refresh the upgrade panel with new stats
+    this.ui.showUpgradePanel(d);
+  }
+
+  // --- Main update loop ---
+
+  update(dt) {
+    dt = Math.min(dt, 0.1);
+
+    // Passive KW income from defenses
+    const kwRate = this.defenses.getTotalKWPerSecond();
+    this.economy.addPassiveIncome(kwRate, dt);
+
+    // Update HUD
+    this.ui.updateKW(this.economy.balance);
+    this.ui.updateKWRate(kwRate);
+    this.ui.updateStationHP(STATION.health, STATION.maxHealth);
+
+    if (this.state === State.GOD_MODE) {
+      this._updateGodMode(dt);
+    } else if (this.state === State.WAVE_ACTIVE) {
+      this._updateWaveActive(dt);
+    }
+
+    // Update zap visuals
+    this._updateZaps(dt);
+
+    // Pulse the selection ring
+    if (this._selectionRing.visible) {
+      this._selectionRing.material.opacity = 0.3 + 0.2 * Math.sin(performance.now() * 0.005);
+    }
+
+    // Render
+    this.renderer.render(this.scene, this.cameras.active);
+    this.input.endFrame();
+  }
+
+  _updateGodMode(dt) {
+    this.ui.updateDefenseButtons(this.economy.balance);
+    if (this.selectedUpgradeTarget) {
+      this.ui.updateUpgradeAffordability(this.economy.balance, this.selectedUpgradeTarget);
+    }
+
+    // Defenses still auto-attack (nothing to attack, but keeps things updated)
+    this.defenses.update(dt, this.enemies);
+
+    // Raycast cursor onto ground
+    if (!this.ground) return;
+    const hit = this.cameras.raycastGround(
+      this.input.mouse.ndcX, this.input.mouse.ndcY, this.ground
+    );
+    if (!hit) return;
+
+    const { cx, cz } = this.grid.worldToCell(hit.x, hit.z);
+
+    // If no defense type selected, always show grid highlight for feedback
+    if (this.ui.selectedDefense) {
+      this.grid.updateHighlight(cx, cz);
+    } else {
+      this.grid.highlight.visible = false;
+    }
+
+    // Click handling
+    if (this.input.mouse.clicked) {
+      // First: check if clicking on an existing defense for upgrade
+      const existing = this.defenses.findAt(hit.x, hit.z);
+      if (existing) {
+        this.selectedUpgradeTarget = existing;
+        this._selectionRing.visible = true;
+        this._selectionRing.position.set(existing.cx, 0.15, existing.cz);
+        this.ui.showUpgradePanel(existing);
+        // Deselect placement
+        this.ui.selectedDefense = null;
+        document.querySelectorAll('.defense-btn').forEach(b => b.classList.remove('selected'));
+        return;
+      }
+
+      // Second: place a new defense if type is selected
+      if (this.ui.selectedDefense) {
+        this._tryPlaceDefense(this.ui.selectedDefense, cx, cz);
+      } else {
+        // Clicked empty space with nothing selected — dismiss upgrade panel
+        this.selectedUpgradeTarget = null;
+        this._selectionRing.visible = false;
+        this.ui.hideUpgradePanel();
+      }
+    }
+  }
+
+  _tryPlaceDefense(typeId, cx, cz) {
+    const typeDef = DEFENSE_TYPES[typeId];
+    if (!typeDef) return;
+    const cost = typeDef.levels[0].cost;
+    if (!this.grid.canPlace(cx, cz)) return;
+    if (!this.economy.canAfford(cost)) return;
+
+    this.economy.spend(cost);
+    this.grid.occupy(cx, cz, typeId);
+    this.defenses.place(typeId, cx, cz);
+    this.defenseCount++;
+
+    // Show fun fact (only for energy types)
+    if (typeId === 'SOLAR_PANEL' || typeId === 'WIND_TURBINE') {
+      const fact = getRandomFact(typeId);
+      this.ui.showFact(fact);
+    }
+  }
+
+  _updateWaveActive(dt) {
+    // Spawn enemies
+    const toSpawn = this.waves.update(dt);
+    for (const typeId of toSpawn) {
+      this.enemies.spawn(typeId);
+    }
+
+    // Update player
+    this.player.update(this.input, dt);
+
+    // Player shooting
+    if (this.input.mouse.clicked) {
+      if (this.player.tryFire()) {
+        const forward = new THREE.Vector3(0, 0, -1);
+        forward.applyAxisAngle(new THREE.Vector3(0, 1, 0), this.player.rotationY);
+        const stunPoint = this.player.position.clone().add(
+          forward.multiplyScalar(this.player.stunGunRange * 0.5)
+        );
+        stunPoint.y = 1;
+
+        this.enemies.damageInRadius(
+          stunPoint, this.player.stunGunRange * 0.6, this.player.stunGunDamage
+        );
+
+        this._createZap(this.player.position, stunPoint);
+      }
+    }
+
+    // Update enemies (pass alive fences too — they act as barriers enemies must break)
+    this.enemies.update(dt, this.defenses.aliveDefenses, STATION);
+
+    // Update defenses (auto-attack + station healing)
+    this.defenses.update(dt, this.enemies);
+
+    // Credit KW for ALL kills (stun gun, turrets, solar, wind, electric fences)
+    const kills = this.enemies.collectUnrewardedKills();
+    for (const e of kills) {
+      this.economy.earn(e.def.reward);
+      e.group.visible = false;
+    }
+
+    // Camera follow
+    this.cameras.followPlayer(this.player.position, this.player.rotationY, dt);
+
+    // Check station death
+    if (STATION.health <= 0) {
+      STATION.health = 0;
+      this._gameOver();
+      return;
+    }
+
+    // Check wave complete
+    if (!this.waves.spawning && this.enemies.aliveCount === 0 && this.waves.totalSpawned > 0) {
+      this._waveComplete();
+    }
+  }
+
+  _createZap(from, to) {
+    const points = [from.clone(), to.clone()];
+    points[0].y = 1.5;
+    points[1].y = 1;
+    const mid = from.clone().lerp(to, 0.5);
+    mid.x += (Math.random() - 0.5) * 2;
+    mid.y = 1.2 + Math.random();
+    mid.z += (Math.random() - 0.5) * 2;
+    const curve = new THREE.QuadraticBezierCurve3(points[0], mid, points[1]);
+    const curvePoints = curve.getPoints(8);
+    const geo = new THREE.BufferGeometry().setFromPoints(curvePoints);
+    const mat = new THREE.LineBasicMaterial({ color: 0x44ddff, transparent: true, opacity: 1 });
+    const line = new THREE.Line(geo, mat);
+    this.scene.add(line);
+    this._zapLines.push({ line, life: 0.15 });
+  }
+
+  _updateZaps(dt) {
+    for (let i = this._zapLines.length - 1; i >= 0; i--) {
+      const z = this._zapLines[i];
+      z.life -= dt;
+      z.line.material.opacity = Math.max(0, z.life / 0.15);
+      if (z.life <= 0) {
+        this.scene.remove(z.line);
+        z.line.geometry.dispose();
+        z.line.material.dispose();
+        this._zapLines.splice(i, 1);
+      }
+    }
+  }
+}
