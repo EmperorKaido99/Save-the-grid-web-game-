@@ -483,3 +483,13 @@ canvas {
   0%, 100% { opacity: 0.65; }
   50% { opacity: 1; }
 }
+
+/* Aim-mode crosshair */
+.crosshair {
+  transition: transform 0.15s ease, color 0.15s ease;
+}
+.crosshair.aiming {
+  transform: translate(-50%, -50%) scale(1.6);
+  color: rgba(255, 96, 96, 0.9);
+  text-shadow: 0 0 10px rgba(255, 96, 96, 0.5);
+}

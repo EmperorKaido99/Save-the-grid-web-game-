@@ -43,8 +43,13 @@ export class Player {
 
     // Shared state
     this.velocity = new THREE.Vector3();
+    this.velY = 0;           // vertical velocity (jumping)
+    this.grounded = true;
     this.rotationY = 0;
     this.cooldownTimer = 0;
+    this.sprinting = false;
+    this.moving = false;
+    this._lean = 0;
     this._bobTime = 0;
     this._bobOffset = 0;
 
@@ -274,6 +279,10 @@ export class Player {
 
     // Reset state
     this.velocity.set(0, 0, 0);
+    this.velY = 0;
+    this.grounded = true;
+    this.group.position.y = 0;
+    this._lean = 0;
     this.cooldownTimer = 0;
     this.isRepairing = false;
     this.repairTarget = null;
@@ -283,7 +292,7 @@ export class Player {
 
   // --- Main update ---
 
-  update(input, dt, cameraYaw = 0) {
+  update(input, dt, cameraYaw = 0, aiming = false) {
     const stats = this.stats;
 
     // --- Movement (camera-relative, standard third-person WASD) ---
@@ -292,51 +301,83 @@ export class Player {
     if (input.isKeyDown('KeyS') || input.isKeyDown('ArrowDown')) fwd -= 1;
     if (input.isKeyDown('KeyA') || input.isKeyDown('ArrowLeft')) strafe -= 1;
     if (input.isKeyDown('KeyD') || input.isKeyDown('ArrowRight')) strafe += 1;
+    const hasInput = fwd !== 0 || strafe !== 0;
 
-    if (fwd !== 0 || strafe !== 0) {
+    this.sprinting = !aiming && hasInput && fwd > 0 &&
+      (input.isKeyDown('ShiftLeft') || input.isKeyDown('ShiftRight'));
+    const speedMult = aiming ? 0.55 : (this.sprinting ? 1.65 : 1);
+    const maxSpeed = stats.speed * speedMult;
+
+    // Desired velocity from input, then damp toward it — crisp,
+    // frame-rate-independent accel AND decel (no floaty drift)
+    const desired = new THREE.Vector3();
+    if (hasInput) {
       // Camera looks along (-sin(yaw), 0, -cos(yaw)); right is (cos(yaw), 0, -sin(yaw))
       const sinY = Math.sin(cameraYaw), cosY = Math.cos(cameraYaw);
-      const inputDir = new THREE.Vector3(
+      desired.set(
         -sinY * fwd + cosY * strafe,
         0,
         -cosY * fwd - sinY * strafe
-      ).normalize();
-      this.velocity.x += inputDir.x * stats.acceleration * dt;
-      this.velocity.z += inputDir.z * stats.acceleration * dt;
+      ).normalize().multiplyScalar(maxSpeed);
     }
-
-    const frictionFactor = Math.exp(-stats.friction * dt);
-    this.velocity.x *= frictionFactor;
-    this.velocity.z *= frictionFactor;
+    const accel = this.grounded ? 12 : 4; // less air control
+    this.velocity.x = THREE.MathUtils.damp(this.velocity.x, desired.x, accel, dt);
+    this.velocity.z = THREE.MathUtils.damp(this.velocity.z, desired.z, accel, dt);
 
     const currentSpeed = Math.sqrt(this.velocity.x ** 2 + this.velocity.z ** 2);
-    if (currentSpeed > stats.speed) {
-      const scale = stats.speed / currentSpeed;
-      this.velocity.x *= scale;
-      this.velocity.z *= scale;
+    this.moving = currentSpeed > 0.5;
+
+    // --- Jump & gravity ---
+    if (this.grounded && input.wasPressed('Space')) {
+      this.velY = 11;
+      this.grounded = false;
+    }
+    if (!this.grounded) {
+      this.velY -= 30 * dt;
     }
 
     this.group.position.x += this.velocity.x * dt;
     this.group.position.z += this.velocity.z * dt;
+    this.group.position.y += this.velY * dt;
+    if (this.group.position.y <= 0) {
+      this.group.position.y = 0;
+      this.velY = 0;
+      this.grounded = true;
+    }
 
     this.group.position.x = THREE.MathUtils.clamp(this.group.position.x, -44, 44);
     this.group.position.z = THREE.MathUtils.clamp(this.group.position.z, -44, 44);
 
-    // --- Face movement direction (model forward is -Z), turning smoothly ---
-    if (currentSpeed > 0.5) {
+    // --- Facing (model forward is -Z) ---
+    let turnDiff = 0;
+    if (aiming) {
+      // Aim mode: lock to the camera direction, strafe like a shooter
+      let diff = cameraYaw - this.rotationY;
+      diff = Math.atan2(Math.sin(diff), Math.cos(diff));
+      turnDiff = diff;
+      this.rotationY += diff * (1 - Math.exp(-20 * dt));
+    } else if (this.moving) {
+      // Turn smoothly toward the movement direction, the short way around
       const targetRot = Math.atan2(-this.velocity.x, -this.velocity.z);
       let diff = targetRot - this.rotationY;
-      // Wrap to [-PI, PI] so the character turns the short way around
       diff = Math.atan2(Math.sin(diff), Math.cos(diff));
+      turnDiff = diff;
       this.rotationY += diff * (1 - Math.exp(-14 * dt));
     }
 
     this.group.rotation.y = this.rotationY;
 
-    // --- Walking bob ---
+    // --- Lean into turns (subtle roll for a modern, weighty feel) ---
+    const wantLean = THREE.MathUtils.clamp(
+      -turnDiff * (currentSpeed / stats.speed) * 0.25, -0.1, 0.1
+    );
+    this._lean = THREE.MathUtils.damp(this._lean, wantLean, 10, dt);
+    this.group.rotation.z = this._lean;
+
+    // --- Walking bob (grounded only; faster while sprinting) ---
     const activeGroup = this.activeChar === 'COMBAT' ? this._combatGroup : this._repairGroup;
-    if (currentSpeed > 0.5) {
-      this._bobTime += dt * currentSpeed * 1.5;
+    if (this.moving && this.grounded) {
+      this._bobTime += dt * currentSpeed * (this.sprinting ? 1.8 : 1.5);
       this._bobOffset = Math.abs(Math.sin(this._bobTime)) * 0.12;
     } else {
       this._bobTime = 0;
@@ -437,8 +478,14 @@ export class Player {
     this.group.position.set(0, 0, 8);
     this._partnerGroup.position.set(3, 0, 8);
     this.velocity.set(0, 0, 0);
+    this.velY = 0;
+    this.grounded = true;
+    this.sprinting = false;
+    this.moving = false;
+    this._lean = 0;
     this.rotationY = 0;
     this.group.rotation.y = 0;
+    this.group.rotation.z = 0;
     this.cooldownTimer = 0;
     this._bobTime = 0;
     this._bobOffset = 0;

@@ -89,6 +89,7 @@ export class Game {
     this.input.wantsLock = false;
     this.input.exitLock();
     this.ui.hideLockHint();
+    this.ui.setAiming(false);
     this.cameras.setGodMode();
     this.grid.show();
     this.defenses.showRanges();
@@ -297,18 +298,6 @@ export class Game {
     }
     if (!switchPressed) this._tabHeld = false;
 
-    // Mouse look — orbit the camera around the player; wheel zooms
-    this.cameras.addLook(this.input.look.dx, this.input.look.dy);
-    if (this.input.wheelDelta !== 0) {
-      this.cameras.addZoom(this.input.wheelDelta);
-    }
-
-    // Update player movement (WASD, relative to camera direction)
-    this.player.update(this.input, dt, this.cameras.forwardYaw);
-
-    // Third-person camera follows behind the player
-    this.cameras.followPlayer(this.player.position, dt);
-
     // Actions are live when the mouse is captured, or in fallback mode where
     // pointer lock is unavailable and plain mouse movement steers the camera.
     // While a capture is still possible, prompt for the click that grabs it.
@@ -318,6 +307,39 @@ export class Game {
     } else {
       this.ui.showLockHint();
     }
+
+    // Aim mode (GTA-style over-the-shoulder): Combat Worker + right mouse held
+    const aiming = pointerActive &&
+      this.player.activeChar === 'COMBAT' && this.input.mouse.rightDown;
+
+    // Mouse look — orbit the camera around the player; wheel zooms
+    this.cameras.addLook(this.input.look.dx, this.input.look.dy, aiming);
+    if (this.input.wheelDelta !== 0) {
+      this.cameras.addZoom(this.input.wheelDelta);
+    }
+
+    // Edge-glide: without pointer lock the cursor stops at the screen border,
+    // so keep turning while it's pushed against an edge (like an RTS camera)
+    if (!this.input.isLocked) {
+      const margin = 40;
+      const mx = this.input.mouse.x, my = this.input.mouse.y;
+      let gx = 0, gy = 0;
+      if (mx <= margin) gx = -1; else if (mx >= window.innerWidth - margin) gx = 1;
+      if (my <= margin) gy = -1; else if (my >= window.innerHeight - margin) gy = 1;
+      if (gx || gy) this.cameras.addLook(gx * 900 * dt, gy * 600 * dt, aiming);
+    }
+
+    // Update player movement (WASD relative to camera, sprint, jump, aim strafe)
+    this.player.update(this.input, dt, this.cameras.forwardYaw, aiming);
+
+    // Spring-arm camera follows behind the player
+    this.cameras.followPlayer(this.player.position, dt, {
+      aiming,
+      sprinting: this.player.sprinting && this.player.moving,
+    });
+
+    // Crosshair feedback for aim mode
+    this.ui.setAiming(aiming);
 
     // Player abilities — depends on active character
     const stats = this.player.stats;

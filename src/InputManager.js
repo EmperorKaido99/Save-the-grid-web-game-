@@ -2,7 +2,8 @@
 export class InputManager {
   constructor(canvas) {
     this.keys = {};
-    this.mouse = { x: 0, y: 0, ndcX: 0, ndcY: 0, down: false, clicked: false };
+    this.pressed = {}; // single-frame key presses (cleared in endFrame)
+    this.mouse = { x: 0, y: 0, ndcX: 0, ndcY: 0, down: false, clicked: false, rightDown: false };
     this.look = { dx: 0, dy: 0 };
     this.wheelDelta = 0;
     this.canvas = canvas;
@@ -21,8 +22,11 @@ export class InputManager {
 
     window.addEventListener('keydown', (e) => {
       this.keys[e.code] = true;
-      // Prevent Tab from switching browser focus
-      if (e.code === 'Tab') e.preventDefault();
+      if (!e.repeat) this.pressed[e.code] = true;
+      // Prevent Tab from switching browser focus and Space from scrolling
+      if (e.code === 'Tab' || (e.code === 'Space' && e.target === document.body)) {
+        e.preventDefault();
+      }
     });
     window.addEventListener('keyup', (e) => {
       this.keys[e.code] = false;
@@ -53,6 +57,10 @@ export class InputManager {
     });
 
     canvas.addEventListener('mousedown', (e) => {
+      if (e.button === 2) {
+        this.mouse.rightDown = true;
+        return;
+      }
       if (e.button !== 0) return;
       // In action mode, an unlocked click tries to capture the mouse first.
       // If capture keeps getting refused, stop swallowing clicks so the
@@ -70,6 +78,7 @@ export class InputManager {
     });
     document.addEventListener('mouseup', (e) => {
       if (e.button === 0) this.mouse.down = false;
+      if (e.button === 2) this.mouse.rightDown = false;
     });
     canvas.addEventListener('wheel', (e) => {
       if (this.wantsLock) {
@@ -85,10 +94,11 @@ export class InputManager {
       if (!this.isLocked) {
         this.mouse.down = false;
         this.mouse.clicked = false;
+        this.mouse.rightDown = false;
       }
     });
 
-    // Prevent context menu on right-click
+    // Prevent context menu on right-click (right mouse = aim)
     canvas.addEventListener('contextmenu', (e) => e.preventDefault());
   }
 
@@ -105,10 +115,22 @@ export class InputManager {
   requestLock() {
     if (this.isLocked) return;
     try {
-      const p = this.canvas.requestPointerLock();
-      // Some browsers return a promise that rejects if the gesture is stale
-      if (p && p.catch) p.catch(() => {});
-    } catch (_) { /* refused — next click retries or fallback takes over */ }
+      // unadjustedMovement = raw mouse input (no OS acceleration) where supported
+      const p = this.canvas.requestPointerLock({ unadjustedMovement: true });
+      if (p && p.catch) {
+        p.catch(() => {
+          // Retry without the option — some browsers reject it outright
+          try {
+            const p2 = this.canvas.requestPointerLock();
+            if (p2 && p2.catch) p2.catch(() => {});
+          } catch (_) { /* refused */ }
+        });
+      }
+    } catch (_) {
+      try {
+        this.canvas.requestPointerLock();
+      } catch (_) { /* refused — next click retries or fallback takes over */ }
+    }
   }
 
   exitLock() {
@@ -121,11 +143,17 @@ export class InputManager {
     return !!this.keys[code];
   }
 
+  // True only on the frame the key went down
+  wasPressed(code) {
+    return !!this.pressed[code];
+  }
+
   // Call at end of frame to reset single-frame flags
   endFrame() {
     this.mouse.clicked = false;
     this.look.dx = 0;
     this.look.dy = 0;
     this.wheelDelta = 0;
+    this.pressed = {};
   }
 }

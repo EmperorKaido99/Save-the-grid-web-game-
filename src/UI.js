@@ -134,8 +134,8 @@ export class UI {
     this.controlsHelp = this._div('controls-help');
     this.controlsHelp.innerHTML = `
       <div><strong>God Mode:</strong> Select defense type | Click grid to place | Click existing defense to upgrade</div>
-      <div><strong>Action Mode:</strong> WASD move | Mouse to look around | Tab or Q to switch character</div>
-      <div><strong>Combat Worker:</strong> Click to shoot | <strong>Repair Worker:</strong> Hold click near solar panel / wind turbine to repair</div>
+      <div><strong>Action Mode:</strong> WASD move | Mouse look | Shift sprint | Space jump | Tab/Q switch character | Wheel zoom</div>
+      <div><strong>Combat Worker:</strong> Right-click aim, click to shoot | <strong>Repair Worker:</strong> Hold click near solar panel / wind turbine to repair</div>
     `;
     document.body.appendChild(this.controlsHelp);
   }
@@ -216,6 +216,12 @@ export class UI {
     // Update crosshair color
     this.crosshair.style.color = charId === 'REPAIR'
       ? 'rgba(68, 255, 136, 0.7)' : 'rgba(68, 221, 255, 0.7)';
+  }
+
+  setAiming(aiming) {
+    if (this._aiming === aiming) return;
+    this._aiming = aiming;
+    this.crosshair.classList.toggle('aiming', aiming);
   }
 
   showLockHint() {
