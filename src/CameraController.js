@@ -1,8 +1,10 @@
 import * as THREE from 'three';
 
-const LOOK_SENSITIVITY = 0.0025;
-const PITCH_MIN = 0.12;
+const LOOK_SENSITIVITY = 0.0028;
+const PITCH_MIN = 0.08;
 const PITCH_MAX = 1.25;
+const ZOOM_MIN = 6;
+const ZOOM_MAX = 18;
 
 export class CameraController {
   constructor(canvas) {
@@ -49,6 +51,13 @@ export class CameraController {
     this.yaw -= dx * LOOK_SENSITIVITY;
     this.pitch = THREE.MathUtils.clamp(
       this.pitch + dy * LOOK_SENSITIVITY, PITCH_MIN, PITCH_MAX
+    );
+  }
+
+  // Scroll-wheel zoom in/out
+  addZoom(delta) {
+    this.distance = THREE.MathUtils.clamp(
+      this.distance + delta * 0.01, ZOOM_MIN, ZOOM_MAX
     );
   }
 

@@ -113,6 +113,12 @@ export class UI {
     this.crosshair.style.display = 'none';
     document.body.appendChild(this.crosshair);
 
+    // --- Pointer-lock hint (shown when mouse isn't captured in action mode) ---
+    this.lockHint = this._div('lock-hint');
+    this.lockHint.textContent = '🖱 Click to control the camera';
+    this.lockHint.style.display = 'none';
+    document.body.appendChild(this.lockHint);
+
     // --- Game Over / Victory Screen ---
     this.endScreen = this._div('end-screen');
     this.endScreen.style.display = 'none';
@@ -210,6 +216,14 @@ export class UI {
     // Update crosshair color
     this.crosshair.style.color = charId === 'REPAIR'
       ? 'rgba(68, 255, 136, 0.7)' : 'rgba(68, 221, 255, 0.7)';
+  }
+
+  showLockHint() {
+    this.lockHint.style.display = 'block';
+  }
+
+  hideLockHint() {
+    this.lockHint.style.display = 'none';
   }
 
   showRepairEffect() {

@@ -86,7 +86,9 @@ export class Game {
 
   _enterGodMode() {
     this.state = State.GOD_MODE;
+    this.input.wantsLock = false;
     this.input.exitLock();
+    this.ui.hideLockHint();
     this.cameras.setGodMode();
     this.grid.show();
     this.defenses.showRanges();
@@ -103,6 +105,7 @@ export class Game {
     this.state = State.WAVE_ACTIVE;
     this.cameras.setCharacterMode();
     this.cameras.snapBehind(this.player.position, this.player.rotationY);
+    this.input.wantsLock = true;
     this.input.requestLock();
     this.grid.hide();
     this.defenses.hideRanges();
@@ -135,6 +138,9 @@ export class Game {
 
   _gameOver() {
     this.state = State.GAME_OVER;
+    this.input.wantsLock = false;
+    this.input.exitLock();
+    this.ui.hideLockHint();
     this.ui.showEndScreen(false, {
       waves: this.waves.waveNumber - 1,
       earned: this.economy.totalEarned,
@@ -144,6 +150,9 @@ export class Game {
 
   _victory() {
     this.state = State.VICTORY;
+    this.input.wantsLock = false;
+    this.input.exitLock();
+    this.ui.hideLockHint();
     this.ui.showEndScreen(true, {
       waves: this.waves.totalWaves,
       earned: this.economy.totalEarned,
@@ -288,8 +297,11 @@ export class Game {
     }
     if (!switchPressed) this._tabHeld = false;
 
-    // Mouse look — orbit the camera around the player
+    // Mouse look — orbit the camera around the player; wheel zooms
     this.cameras.addLook(this.input.look.dx, this.input.look.dy);
+    if (this.input.wheelDelta !== 0) {
+      this.cameras.addZoom(this.input.wheelDelta);
+    }
 
     // Update player movement (WASD, relative to camera direction)
     this.player.update(this.input, dt, this.cameras.forwardYaw);
@@ -297,10 +309,13 @@ export class Game {
     // Third-person camera follows behind the player
     this.cameras.followPlayer(this.player.position, dt);
 
-    // Clicking the canvas while unlocked recaptures the mouse instead of acting
+    // If the mouse isn't captured (lock failed or Esc), prompt the player;
+    // the InputManager recaptures it on the next canvas click
     const pointerActive = this.input.isLocked;
-    if (!pointerActive && this.input.mouse.clicked) {
-      this.input.requestLock();
+    if (pointerActive) {
+      this.ui.hideLockHint();
+    } else {
+      this.ui.showLockHint();
     }
 
     // Player abilities — depends on active character

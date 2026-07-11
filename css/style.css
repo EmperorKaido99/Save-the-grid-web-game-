@@ -460,3 +460,26 @@ canvas {
   pointer-events: none;
   line-height: 1.6;
 }
+
+/* ─── Pointer-lock hint ─── */
+.lock-hint {
+  position: fixed;
+  top: 58%;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 10px 22px;
+  background: rgba(10, 16, 30, 0.85);
+  border: 1px solid rgba(68, 221, 255, 0.5);
+  border-radius: 8px;
+  color: #cfe9ff;
+  font-size: 15px;
+  letter-spacing: 0.5px;
+  pointer-events: none;
+  z-index: 20;
+  animation: lock-hint-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes lock-hint-pulse {
+  0%, 100% { opacity: 0.65; }
+  50% { opacity: 1; }
+}

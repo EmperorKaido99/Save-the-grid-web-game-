@@ -322,9 +322,13 @@ export class Player {
     this.group.position.x = THREE.MathUtils.clamp(this.group.position.x, -44, 44);
     this.group.position.z = THREE.MathUtils.clamp(this.group.position.z, -44, 44);
 
-    // --- Face movement direction (model forward is -Z) ---
+    // --- Face movement direction (model forward is -Z), turning smoothly ---
     if (currentSpeed > 0.5) {
-      this.rotationY = Math.atan2(-this.velocity.x, -this.velocity.z);
+      const targetRot = Math.atan2(-this.velocity.x, -this.velocity.z);
+      let diff = targetRot - this.rotationY;
+      // Wrap to [-PI, PI] so the character turns the short way around
+      diff = Math.atan2(Math.sin(diff), Math.cos(diff));
+      this.rotationY += diff * (1 - Math.exp(-14 * dt));
     }
 
     this.group.rotation.y = this.rotationY;
