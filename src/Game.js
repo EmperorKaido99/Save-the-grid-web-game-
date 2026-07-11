@@ -309,9 +309,10 @@ export class Game {
     // Third-person camera follows behind the player
     this.cameras.followPlayer(this.player.position, dt);
 
-    // If the mouse isn't captured (lock failed or Esc), prompt the player;
-    // the InputManager recaptures it on the next canvas click
-    const pointerActive = this.input.isLocked;
+    // Actions are live when the mouse is captured, or in fallback mode where
+    // pointer lock is unavailable and plain mouse movement steers the camera.
+    // While a capture is still possible, prompt for the click that grabs it.
+    const pointerActive = this.input.isLocked || this.input.lockFailed;
     if (pointerActive) {
       this.ui.hideLockHint();
     } else {

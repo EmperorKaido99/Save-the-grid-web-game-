@@ -7,11 +7,17 @@ export class InputManager {
     this.wheelDelta = 0;
     this.canvas = canvas;
 
-    // When true (action mode), clicking the canvas captures the mouse.
-    // Pointer lock MUST be requested from inside a real click event handler —
-    // browsers reject requests made from the game loop.
+    // When true (action mode), the mouse controls the camera.
+    // Preferred: pointer lock (infinite rotation, hidden cursor). Pointer lock
+    // MUST be requested from inside a real click event handler — browsers
+    // reject requests made from the game loop.
+    // Fallback: if the environment refuses pointer lock (file://, embedded
+    // previews, some iframes), plain mousemove deltas drive the camera so
+    // look control always works.
     this.wantsLock = false;
-    this.onLockChange = null;
+    this.lockFailed = false;
+    this._lockTimer = null;
+    this._lastClient = null;
 
     window.addEventListener('keydown', (e) => {
       this.keys[e.code] = true;
@@ -21,6 +27,7 @@ export class InputManager {
     window.addEventListener('keyup', (e) => {
       this.keys[e.code] = false;
     });
+
     document.addEventListener('mousemove', (e) => {
       if (this.isLocked) {
         this.look.dx += e.movementX;
@@ -31,12 +38,31 @@ export class InputManager {
       this.mouse.y = e.clientY;
       this.mouse.ndcX = (e.clientX / window.innerWidth) * 2 - 1;
       this.mouse.ndcY = -(e.clientY / window.innerHeight) * 2 + 1;
+
+      // Unlocked look: drive the camera from cursor deltas so the mouse
+      // works even before/without pointer lock
+      if (this.wantsLock && this._lastClient) {
+        const dx = e.clientX - this._lastClient.x;
+        const dy = e.clientY - this._lastClient.y;
+        if (Math.abs(dx) < 150 && Math.abs(dy) < 150) {
+          this.look.dx += dx;
+          this.look.dy += dy;
+        }
+      }
+      this._lastClient = { x: e.clientX, y: e.clientY };
     });
+
     canvas.addEventListener('mousedown', (e) => {
       if (e.button !== 0) return;
-      // In action mode, an unlocked click captures the mouse instead of firing
-      if (this.wantsLock && !this.isLocked) {
+      // In action mode, an unlocked click tries to capture the mouse first.
+      // If capture keeps getting refused, stop swallowing clicks so the
+      // player can still shoot/repair using the fallback look.
+      if (this.wantsLock && !this.isLocked && !this.lockFailed) {
         this.requestLock();
+        clearTimeout(this._lockTimer);
+        this._lockTimer = setTimeout(() => {
+          if (!this.isLocked) this.lockFailed = true;
+        }, 400);
         return;
       }
       this.mouse.down = true;
@@ -53,15 +79,13 @@ export class InputManager {
     }, { passive: false });
 
     document.addEventListener('pointerlockchange', () => {
+      // Avoid a huge fallback delta when the cursor reappears after unlock
+      this._lastClient = null;
       // Releasing the lock (e.g. Esc) shouldn't leave a stale click/hold
       if (!this.isLocked) {
         this.mouse.down = false;
         this.mouse.clicked = false;
       }
-      if (this.onLockChange) this.onLockChange(this.isLocked);
-    });
-    document.addEventListener('pointerlockerror', () => {
-      // Lock refused (browser policy) — nothing to do, next click retries
     });
 
     // Prevent context menu on right-click
@@ -72,13 +96,19 @@ export class InputManager {
     return document.pointerLockElement === this.canvas;
   }
 
+  // Look control is live when locked, or in fallback mode (lock unavailable),
+  // where plain mouse movement rotates the camera
+  get lookActive() {
+    return this.wantsLock && (this.isLocked || this.lockFailed);
+  }
+
   requestLock() {
     if (this.isLocked) return;
     try {
       const p = this.canvas.requestPointerLock();
       // Some browsers return a promise that rejects if the gesture is stale
       if (p && p.catch) p.catch(() => {});
-    } catch (_) { /* refused — next click retries */ }
+    } catch (_) { /* refused — next click retries or fallback takes over */ }
   }
 
   exitLock() {
