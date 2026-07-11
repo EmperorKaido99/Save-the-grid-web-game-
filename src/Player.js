@@ -43,8 +43,6 @@ export class Player {
 
     // Shared state
     this.velocity = new THREE.Vector3();
-    this.aimPoint = new THREE.Vector3(0, 0, -5);
-    this._raycaster = new THREE.Raycaster();
     this.rotationY = 0;
     this.cooldownTimer = 0;
     this._bobTime = 0;
@@ -285,7 +283,7 @@ export class Player {
 
   // --- Main update ---
 
-  update(input, dt, camera, ground) {
+  update(input, dt) {
     const stats = this.stats;
 
     // --- Movement ---
@@ -318,22 +316,9 @@ export class Player {
     this.group.position.x = THREE.MathUtils.clamp(this.group.position.x, -44, 44);
     this.group.position.z = THREE.MathUtils.clamp(this.group.position.z, -44, 44);
 
-    // --- Aim toward mouse ---
-    if (camera && ground) {
-      this._raycaster.setFromCamera(
-        { x: input.mouse.ndcX, y: input.mouse.ndcY },
-        camera
-      );
-      const hits = this._raycaster.intersectObject(ground);
-      if (hits.length > 0) {
-        this.aimPoint.copy(hits[0].point);
-        const dx = this.aimPoint.x - this.group.position.x;
-        const dz = this.aimPoint.z - this.group.position.z;
-        // Only rotate if aim point is far enough from player to be stable
-        if (dx * dx + dz * dz > 1) {
-          this.rotationY = Math.atan2(dx, dz);
-        }
-      }
+    // --- Face movement direction ---
+    if (currentSpeed > 0.5) {
+      this.rotationY = Math.atan2(this.velocity.x, this.velocity.z);
     }
 
     this.group.rotation.y = this.rotationY;
@@ -382,18 +367,10 @@ export class Player {
     return true;
   }
 
-  // Combat: get stun target point
+  // Combat: get stun target point (fires forward based on facing)
   getStunTarget() {
-    const dir = new THREE.Vector3(
-      this.aimPoint.x - this.group.position.x,
-      0,
-      this.aimPoint.z - this.group.position.z
-    );
-    if (dir.length() < 0.1) {
-      dir.set(0, 0, -1).applyAxisAngle(new THREE.Vector3(0, 1, 0), this.rotationY);
-    } else {
-      dir.normalize();
-    }
+    const dir = new THREE.Vector3(0, 0, -1);
+    dir.applyAxisAngle(new THREE.Vector3(0, 1, 0), this.rotationY);
     const range = this.stats.abilityRange;
     const stunPoint = this.group.position.clone().add(
       dir.multiplyScalar(range * 0.5)

@@ -282,11 +282,11 @@ export class Game {
     }
     if (!this.input.keys['Tab']) this._tabHeld = false;
 
-    // Camera follow first — so player raycasting uses up-to-date camera
-    this.cameras.followPlayer(this.player.position, this.player.rotationY, dt);
+    // Update player movement (WASD controls facing direction)
+    this.player.update(this.input, dt);
 
-    // Update player (pass camera + ground for mouse-aim raycasting)
-    this.player.update(this.input, dt, this.cameras.active, this.ground);
+    // Camera follows player with fixed offset
+    this.cameras.followPlayer(this.player.position, this.player.rotationY, dt);
 
     // Player abilities — depends on active character
     const stats = this.player.stats;
