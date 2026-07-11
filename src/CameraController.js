@@ -1,5 +1,9 @@
 import * as THREE from 'three';
 
+const LOOK_SENSITIVITY = 0.0025;
+const PITCH_MIN = 0.12;
+const PITCH_MAX = 1.25;
+
 export class CameraController {
   constructor(canvas) {
     this.aspect = window.innerWidth / window.innerHeight;
@@ -9,9 +13,12 @@ export class CameraController {
     this.godCam.position.set(0, 60, 35);
     this.godCam.lookAt(0, 0, 0);
 
-    // Character-mode camera — third-person follow
+    // Character-mode camera — third-person orbit (mouse look)
     this.charCam = new THREE.PerspectiveCamera(60, this.aspect, 0.1, 200);
-    this.charCam.position.set(0, 8, 12);
+    this.yaw = 0;          // horizontal orbit angle (radians)
+    this.pitch = 0.45;     // vertical orbit angle (radians)
+    this.distance = 11;    // orbit radius
+    this.pivot = new THREE.Vector3(0, 2, 8); // smoothed follow point
 
     this.active = this.godCam;
 
@@ -37,17 +44,42 @@ export class CameraController {
     this.active = this.charCam;
   }
 
-  // Follow the player in character mode — smooth lerp (fixed offset, no rotation)
-  followPlayer(playerPos, playerRotY, dt) {
-    const offset = new THREE.Vector3(0, 6, 10);
-    const target = playerPos.clone().add(offset);
-
-    this.charCam.position.lerp(target, 1 - Math.exp(-8 * dt));
-    this.charCam.lookAt(
-      playerPos.x,
-      playerPos.y + 2,
-      playerPos.z
+  // Mouse-look input: rotate the orbit around the player
+  addLook(dx, dy) {
+    this.yaw -= dx * LOOK_SENSITIVITY;
+    this.pitch = THREE.MathUtils.clamp(
+      this.pitch + dy * LOOK_SENSITIVITY, PITCH_MIN, PITCH_MAX
     );
+  }
+
+  // Horizontal direction the camera is facing (used for camera-relative movement)
+  get forwardYaw() {
+    return this.yaw;
+  }
+
+  // Follow the player: smooth the pivot only, then place the camera on the
+  // orbit sphere directly — no positional lerp on the orbit itself, which is
+  // what caused the camera to spiral/spin when the player moved.
+  followPlayer(playerPos, dt) {
+    const target = new THREE.Vector3(playerPos.x, playerPos.y + 2, playerPos.z);
+    this.pivot.lerp(target, 1 - Math.exp(-12 * dt));
+
+    const cosP = Math.cos(this.pitch);
+    const offset = new THREE.Vector3(
+      Math.sin(this.yaw) * cosP,
+      Math.sin(this.pitch),
+      Math.cos(this.yaw) * cosP
+    ).multiplyScalar(this.distance);
+
+    this.charCam.position.copy(this.pivot).add(offset);
+    this.charCam.lookAt(this.pivot);
+  }
+
+  // Snap the orbit behind the player (used when a wave starts / character swaps)
+  snapBehind(playerPos, playerRotY = 0) {
+    this.yaw = playerRotY;
+    this.pivot.set(playerPos.x, playerPos.y + 2, playerPos.z);
+    this.followPlayer(playerPos, 1);
   }
 
   // Raycast from god-mode camera onto the ground plane

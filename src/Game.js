@@ -86,6 +86,7 @@ export class Game {
 
   _enterGodMode() {
     this.state = State.GOD_MODE;
+    this.input.exitLock();
     this.cameras.setGodMode();
     this.grid.show();
     this.defenses.showRanges();
@@ -101,6 +102,8 @@ export class Game {
 
     this.state = State.WAVE_ACTIVE;
     this.cameras.setCharacterMode();
+    this.cameras.snapBehind(this.player.position, this.player.rotationY);
+    this.input.requestLock();
     this.grid.hide();
     this.defenses.hideRanges();
     this.player.show();
@@ -274,26 +277,39 @@ export class Game {
       this.enemies.spawn(typeId);
     }
 
-    // Switch character with Tab
-    if (this.input.keys['Tab'] && !this._tabHeld) {
+    // Switch character with Tab (Q also works)
+    const switchPressed = this.input.keys['Tab'] || this.input.keys['KeyQ'];
+    if (switchPressed && !this._tabHeld) {
       this._tabHeld = true;
       const newChar = this.player.switchCharacter();
       this.ui.updateActiveCharacter(newChar);
+      // Characters swap positions — snap the camera behind the new one
+      this.cameras.snapBehind(this.player.position, this.cameras.yaw);
     }
-    if (!this.input.keys['Tab']) this._tabHeld = false;
+    if (!switchPressed) this._tabHeld = false;
 
-    // Update player movement (WASD controls facing direction)
-    this.player.update(this.input, dt);
+    // Mouse look — orbit the camera around the player
+    this.cameras.addLook(this.input.look.dx, this.input.look.dy);
 
-    // Camera follows player with fixed offset
-    this.cameras.followPlayer(this.player.position, this.player.rotationY, dt);
+    // Update player movement (WASD, relative to camera direction)
+    this.player.update(this.input, dt, this.cameras.forwardYaw);
+
+    // Third-person camera follows behind the player
+    this.cameras.followPlayer(this.player.position, dt);
+
+    // Clicking the canvas while unlocked recaptures the mouse instead of acting
+    const pointerActive = this.input.isLocked;
+    if (!pointerActive && this.input.mouse.clicked) {
+      this.input.requestLock();
+    }
 
     // Player abilities — depends on active character
     const stats = this.player.stats;
     if (this.player.activeChar === 'COMBAT') {
-      // Combat Worker: stun gun
-      if (this.input.mouse.clicked) {
+      // Combat Worker: stun gun fires where the camera (crosshair) points
+      if (pointerActive && this.input.mouse.clicked) {
         if (this.player.tryFire()) {
+          this.player.rotationY = this.cameras.forwardYaw;
           const stunPoint = this.player.getStunTarget();
           this.enemies.damageInRadius(
             stunPoint, stats.abilityRange * 0.6, stats.abilityDamage
@@ -303,7 +319,7 @@ export class Game {
       }
     } else {
       // Repair Worker: hold click to repair nearby defense/station (no combat)
-      this.player.isRepairing = this.input.mouse.down;
+      this.player.isRepairing = pointerActive && this.input.mouse.down;
       if (this.player.isRepairing) {
         const repaired = this.player.tryRepair(
           this.defenses.aliveDefenses, STATION, dt

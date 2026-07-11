@@ -1,6 +1,7 @@
 import { Game } from './Game.js';
 
 const game = new Game();
+window.__game = game; // debug handle
 
 let lastTime = performance.now();
 

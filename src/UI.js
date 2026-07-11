@@ -128,8 +128,8 @@ export class UI {
     this.controlsHelp = this._div('controls-help');
     this.controlsHelp.innerHTML = `
       <div><strong>God Mode:</strong> Select defense type | Click grid to place | Click existing defense to upgrade</div>
-      <div><strong>Action Mode:</strong> WASD move | Click to fire | Tab to switch character</div>
-      <div><strong>Combat Worker:</strong> Stun gun | <strong>Repair Worker:</strong> Hold click near defense/station to repair</div>
+      <div><strong>Action Mode:</strong> WASD move | Mouse to look around | Tab or Q to switch character</div>
+      <div><strong>Combat Worker:</strong> Click to shoot | <strong>Repair Worker:</strong> Hold click near solar panel / wind turbine to repair</div>
     `;
     document.body.appendChild(this.controlsHelp);
   }

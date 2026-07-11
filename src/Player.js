@@ -283,18 +283,24 @@ export class Player {
 
   // --- Main update ---
 
-  update(input, dt) {
+  update(input, dt, cameraYaw = 0) {
     const stats = this.stats;
 
-    // --- Movement ---
-    const inputDir = new THREE.Vector3();
-    if (input.isKeyDown('KeyW') || input.isKeyDown('ArrowUp')) inputDir.z -= 1;
-    if (input.isKeyDown('KeyS') || input.isKeyDown('ArrowDown')) inputDir.z += 1;
-    if (input.isKeyDown('KeyA') || input.isKeyDown('ArrowLeft')) inputDir.x -= 1;
-    if (input.isKeyDown('KeyD') || input.isKeyDown('ArrowRight')) inputDir.x += 1;
+    // --- Movement (camera-relative, standard third-person WASD) ---
+    let fwd = 0, strafe = 0;
+    if (input.isKeyDown('KeyW') || input.isKeyDown('ArrowUp')) fwd += 1;
+    if (input.isKeyDown('KeyS') || input.isKeyDown('ArrowDown')) fwd -= 1;
+    if (input.isKeyDown('KeyA') || input.isKeyDown('ArrowLeft')) strafe -= 1;
+    if (input.isKeyDown('KeyD') || input.isKeyDown('ArrowRight')) strafe += 1;
 
-    if (inputDir.length() > 0) {
-      inputDir.normalize();
+    if (fwd !== 0 || strafe !== 0) {
+      // Camera looks along (-sin(yaw), 0, -cos(yaw)); right is (cos(yaw), 0, -sin(yaw))
+      const sinY = Math.sin(cameraYaw), cosY = Math.cos(cameraYaw);
+      const inputDir = new THREE.Vector3(
+        -sinY * fwd + cosY * strafe,
+        0,
+        -cosY * fwd - sinY * strafe
+      ).normalize();
       this.velocity.x += inputDir.x * stats.acceleration * dt;
       this.velocity.z += inputDir.z * stats.acceleration * dt;
     }
@@ -316,9 +322,9 @@ export class Player {
     this.group.position.x = THREE.MathUtils.clamp(this.group.position.x, -44, 44);
     this.group.position.z = THREE.MathUtils.clamp(this.group.position.z, -44, 44);
 
-    // --- Face movement direction ---
+    // --- Face movement direction (model forward is -Z) ---
     if (currentSpeed > 0.5) {
-      this.rotationY = Math.atan2(this.velocity.x, this.velocity.z);
+      this.rotationY = Math.atan2(-this.velocity.x, -this.velocity.z);
     }
 
     this.group.rotation.y = this.rotationY;
@@ -387,14 +393,20 @@ export class Player {
     const repairRange = this.stats.abilityRange;
     const repairHP = this.stats.repairRate * dt;
 
-    // Check defenses near aim point
+    // Repair the nearest damaged defense in range (solar panels, wind turbines, etc.)
+    let nearest = null;
+    let nearestDist = Infinity;
     for (const d of defenses) {
-      if (!d.alive) continue;
+      if (!d.alive || d.health >= d.maxHealth) continue;
       const dist = this.group.position.distanceTo(d.group.position);
-      if (dist <= repairRange && d.health < d.maxHealth) {
-        d.health = Math.min(d.maxHealth, d.health + repairHP);
-        return { type: 'defense', target: d };
+      if (dist <= repairRange && dist < nearestDist) {
+        nearest = d;
+        nearestDist = dist;
       }
+    }
+    if (nearest) {
+      nearest.health = Math.min(nearest.maxHealth, nearest.health + repairHP);
+      return { type: 'defense', target: nearest };
     }
 
     // Check station
