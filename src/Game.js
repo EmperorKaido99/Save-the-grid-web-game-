@@ -302,7 +302,7 @@ export class Game {
         }
       }
     } else {
-      // Repair Worker: hold click to repair nearby defense/station, weak stun on click
+      // Repair Worker: hold click to repair nearby defense/station (no combat)
       this.player.isRepairing = this.input.mouse.down;
       if (this.player.isRepairing) {
         const repaired = this.player.tryRepair(
@@ -310,16 +310,6 @@ export class Game {
         );
         if (repaired) {
           this.ui.showRepairEffect();
-        }
-      }
-      // Weak self-defense stun on click
-      if (this.input.mouse.clicked) {
-        if (this.player.tryFire()) {
-          const stunPoint = this.player.getStunTarget();
-          this.enemies.damageInRadius(
-            stunPoint, stats.abilityRange * 0.5, stats.abilityDamage
-          );
-          this._createZap(this.player.position, stunPoint);
         }
       }
     }

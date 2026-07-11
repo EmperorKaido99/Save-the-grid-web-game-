@@ -37,10 +37,9 @@ export class CameraController {
     this.active = this.charCam;
   }
 
-  // Follow the player in character mode — smooth lerp
+  // Follow the player in character mode — smooth lerp (fixed offset, no rotation)
   followPlayer(playerPos, playerRotY, dt) {
     const offset = new THREE.Vector3(0, 6, 10);
-    offset.applyAxisAngle(new THREE.Vector3(0, 1, 0), playerRotY);
     const target = playerPos.clone().add(offset);
 
     this.charCam.position.lerp(target, 1 - Math.exp(-8 * dt));
