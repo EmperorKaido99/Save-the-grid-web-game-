@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Save the Grid — Controller Sandbox</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { overflow: hidden; background: #0a0e18; font-family: monospace; }
+    #hud {
+      position: fixed; top: 12px; left: 12px; z-index: 10;
+      color: #cfe9ff; background: rgba(10, 16, 30, 0.75);
+      border: 1px solid rgba(68, 221, 255, 0.35); border-radius: 8px;
+      padding: 10px 14px; font-size: 13px; line-height: 1.6;
+      pointer-events: none; min-width: 260px;
+    }
+    #hud b { color: #44ddff; }
+    #events { color: #8fa8c0; font-size: 11px; margin-top: 6px; }
+    #help {
+      position: fixed; bottom: 12px; left: 12px; z-index: 10;
+      color: #8fa8c0; background: rgba(10, 16, 30, 0.75);
+      border-radius: 8px; padding: 8px 12px; font-size: 12px;
+      line-height: 1.5; pointer-events: none;
+    }
+    #lock-hint {
+      position: fixed; top: 58%; left: 50%; transform: translateX(-50%);
+      z-index: 10; color: #cfe9ff; background: rgba(10, 16, 30, 0.85);
+      border: 1px solid rgba(68, 221, 255, 0.5); border-radius: 8px;
+      padding: 10px 22px; font-size: 15px; pointer-events: none;
+      animation: pulse 1.6s ease-in-out infinite; display: none;
+    }
+    @keyframes pulse { 0%,100% { opacity: .65; } 50% { opacity: 1; } }
+    #crosshair {
+      position: fixed; top: 50%; left: 50%;
+      transform: translate(-50%, -50%); z-index: 10;
+      color: rgba(68, 221, 255, 0.8); font-size: 26px;
+      pointer-events: none; transition: transform .15s, color .15s;
+    }
+    #crosshair.aiming {
+      transform: translate(-50%, -50%) scale(1.6);
+      color: rgba(255, 96, 96, 0.9);
+    }
+  </style>
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://esm.sh/three@0.162.0",
+      "@dimforge/rapier3d-compat": "https://esm.sh/@dimforge/rapier3d-compat@0.12.0"
+    }
+  }
+  </script>
+</head>
+<body>
+  <div id="hud">loading physics…</div>
+  <div id="crosshair">+</div>
+  <div id="lock-hint">🖱 Click to capture the mouse</div>
+  <div id="help">
+    WASD move · mouse look · Shift sprint · Space jump<br>
+    Right-click aim (Combat) · Left-click fire · Tab/Q switch worker · Wheel zoom · R reset
+  </div>
+  <script type="module" src="src/test/sandbox.js"></script>
+</body>
+</html>
