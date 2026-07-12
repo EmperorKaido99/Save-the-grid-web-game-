@@ -1,0 +1,57 @@
+{
+  "_readme": "Ground truth for the animation pipeline. Raw Mixamo FBX downloads go in assets/mixamo-raw/<character>/ using the raw_filename below. The conversion script (see mixamo-animation-plan.md Task 1) reads that folder and outputs one GLB per clip into assets/models/characters/<character>/ using the output_filename below. state_hook is the Player.js/EnemyManager.js state this clip is wired to — Claude Code should use this instead of guessing from context.",
+
+  "combat_worker": {
+    "rig_notes": "Base body shared conceptually with repair_worker if same source mesh — confirm before assuming shared rig.",
+    "clips": [
+      { "state_hook": "idle",       "mixamo_search": "Idle",                 "raw_filename": "combat_worker_idle.fbx",       "output_filename": "idle.glb",       "skin": "with_skin_if_first_download" },
+      { "state_hook": "walk",       "mixamo_search": "Walking",              "raw_filename": "combat_worker_walk.fbx",       "output_filename": "walk.glb",       "in_place": true },
+      { "state_hook": "run",        "mixamo_search": "Running",              "raw_filename": "combat_worker_run.fbx",        "output_filename": "run.glb",        "in_place": true },
+      { "state_hook": "aim_idle",   "mixamo_search": "Pistol Idle",          "raw_filename": "combat_worker_aim_idle.fbx",   "output_filename": "aim_idle.glb" },
+      { "state_hook": "aim_strafe_left",  "mixamo_search": "Left Strafe Walking",  "raw_filename": "combat_worker_aim_strafe_left.fbx",  "output_filename": "aim_strafe_left.glb",  "in_place": true },
+      { "state_hook": "aim_strafe_right", "mixamo_search": "Right Strafe Walking", "raw_filename": "combat_worker_aim_strafe_right.fbx", "output_filename": "aim_strafe_right.glb", "in_place": true },
+      { "state_hook": "fire",       "mixamo_search": "Pistol Shoot",         "raw_filename": "combat_worker_fire.fbx",       "output_filename": "fire.glb" }
+    ]
+  },
+
+  "repair_worker": {
+    "rig_notes": "Reuse combat_worker's idle/walk/run clips if confirmed same rig — only download repair_loop uniquely.",
+    "clips": [
+      { "state_hook": "idle",         "mixamo_search": "Idle",              "raw_filename": "repair_worker_idle.fbx", "output_filename": "idle.glb", "note": "may be a copy of combat_worker/idle.glb, not a fresh download" },
+      { "state_hook": "walk",         "mixamo_search": "Walking",           "raw_filename": "repair_worker_walk.fbx", "output_filename": "walk.glb", "in_place": true, "note": "may reuse combat_worker/walk.glb" },
+      { "state_hook": "run",          "mixamo_search": "Running",           "raw_filename": "repair_worker_run.fbx",  "output_filename": "run.glb", "in_place": true, "note": "may reuse combat_worker/run.glb" },
+      { "state_hook": "repair_loop",  "mixamo_search": "Kneeling",          "raw_filename": "repair_worker_repair_loop.fbx", "output_filename": "repair_loop.glb" }
+    ]
+  },
+
+  "looter": {
+    "clips": [
+      { "state_hook": "walk",           "mixamo_search": "Zombie Walk",                      "raw_filename": "looter_walk.fbx",           "output_filename": "walk.glb" },
+      { "state_hook": "break_fence",    "mixamo_search": "Standing Melee Attack Downward",   "raw_filename": "looter_break_fence.fbx",    "output_filename": "break_fence.glb" },
+      { "state_hook": "attack_station", "mixamo_search": "Punching",                         "raw_filename": "looter_attack_station.fbx", "output_filename": "attack_station.glb" },
+      { "state_hook": "death",          "mixamo_search": "Dying",                            "raw_filename": "looter_death.fbx",          "output_filename": "death.glb" }
+    ]
+  },
+
+  "cable_thief": {
+    "clips": [
+      { "state_hook": "run",            "mixamo_search": "Running",   "raw_filename": "cable_thief_run.fbx",            "output_filename": "run.glb", "in_place": true },
+      { "state_hook": "climb_fence",    "mixamo_search": "Climbing",  "raw_filename": "cable_thief_climb_fence.fbx",    "output_filename": "climb_fence.glb", "flag": "root-motion drift risk — test in isolation before wiring, see mixamo-animation-plan.md" },
+      { "state_hook": "attack_defense", "mixamo_search": "Grab",      "raw_filename": "cable_thief_attack_defense.fbx", "output_filename": "attack_defense.glb" },
+      { "state_hook": "death",          "mixamo_search": "Dying",     "raw_filename": "cable_thief_death.fbx",          "output_filename": "death.glb", "note": "may reuse looter/death.glb" }
+    ]
+  },
+
+  "vandal": {
+    "clips": [
+      { "state_hook": "walk",         "mixamo_search": "Walking",            "raw_filename": "vandal_walk.fbx",         "output_filename": "walk.glb", "in_place": true, "note": "play at reduced playback rate in code to sell slow/heavy feel" },
+      { "state_hook": "heavy_attack", "mixamo_search": "Sledgehammer Attack", "raw_filename": "vandal_heavy_attack.fbx", "output_filename": "heavy_attack.glb" },
+      { "state_hook": "death",        "mixamo_search": "Dying",              "raw_filename": "vandal_death.fbx",        "output_filename": "death.glb", "note": "may reuse looter/death.glb" }
+    ]
+  },
+
+  "not_mixamo": {
+    "note": "These are NOT part of this pipeline — plain mesh rotation or static props, per mixamo-animation-plan.md",
+    "items": ["wind turbine blades (runtime mesh rotation, not a clip)", "fence break visual (particle/dissolve swap, not a clip)"]
+  }
+}

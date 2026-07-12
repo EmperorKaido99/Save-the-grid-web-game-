@@ -1,10 +1,7 @@
 import * as THREE from 'three';
 import { ENEMY_TYPES } from './data/enemies.js';
 import { Models } from './ModelLoader.js';
-import { CharacterAnimator, loadCharacterClips } from './AnimationSystem.js';
-
-// manifest character keys per enemy type (for converted Mixamo clips)
-const CLIP_KEYS = { LOOTER: 'looter', CABLE_THIEF: 'cable_thief', VANDAL: 'vandal' };
+import { CharacterAnimator } from './AnimationSystem.js';
 
 export class EnemyManager {
   constructor(scene) {
@@ -26,7 +23,8 @@ export class EnemyManager {
 
     // Try to load the real model, fallback to primitive
     const modelKey = typeId === 'LOOTER' ? 'looter' :
-                     typeId === 'CABLE_THIEF' ? 'cableThief' : null;
+                     typeId === 'CABLE_THIEF' ? 'cableThief' :
+                     typeId === 'VANDAL' ? 'vandal' : null;
     const model = modelKey ? Models.getClone(modelKey) : null;
 
     if (model) {
@@ -120,13 +118,12 @@ export class EnemyManager {
     };
     this.enemies.push(enemy);
 
-    // Wire converted Mixamo clips (plus any baked into the model itself).
-    // No-op until clip GLBs land in assets/models/characters/<type>/.
+    // Wire animation clips loaded by ModelLoader (FBX Mixamo clips + embedded)
     if (model) {
-      loadCharacterClips(CLIP_KEYS[typeId]).then(clips => {
-        const animator = new CharacterAnimator(model, clips, Models.getAnimations(modelKey));
-        if (animator.hasAnyClip && enemy.alive) enemy.animator = animator;
-      });
+      const clips = Models.getClips(modelKey);
+      const embedded = Models.getAnimations(modelKey);
+      const animator = new CharacterAnimator(model, clips, embedded);
+      if (animator.hasAnyClip) enemy.animator = animator;
     }
     return enemy;
   }

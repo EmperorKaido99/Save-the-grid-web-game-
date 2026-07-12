@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { Models } from './ModelLoader.js';
-import { CharacterAnimator, loadCharacterClips } from './AnimationSystem.js';
+import { CharacterAnimator } from './AnimationSystem.js';
 
 // Character definitions — portable stats
 const CHARACTERS = {
@@ -81,17 +81,15 @@ export class Player {
     this.group.position.set(0, 0, 8);
     scene.add(this.group);
 
-    // Animation state machines — converted Mixamo clips (when present in
-    // assets/models/characters/) merge with clips baked into the base GLBs
+    // Animation state machines — clips loaded by ModelLoader (FBX + embedded)
     this._animators = { COMBAT: null, REPAIR: null };
     const wire = (charKey, group, modelKey) => {
       const model = group.getObjectByName('model');
       if (!model) return;
-      loadCharacterClips(charKey === 'COMBAT' ? 'combat_worker' : 'repair_worker')
-        .then(clips => {
-          const animator = new CharacterAnimator(model, clips, Models.getAnimations(modelKey));
-          if (animator.hasAnyClip) this._animators[charKey] = animator;
-        });
+      const clips = Models.getClips(modelKey);
+      const embedded = Models.getAnimations(modelKey);
+      const animator = new CharacterAnimator(model, clips, embedded);
+      if (animator.hasAnyClip) this._animators[charKey] = animator;
     };
     wire('COMBAT', this._combatGroup, 'combatWorker');
     wire('REPAIR', this._repairGroup, 'repairWorker');
