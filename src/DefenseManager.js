@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { DEFENSE_TYPES } from './data/defenses.js';
 import { STATION } from './Scene.js';
+import { Models } from './ModelLoader.js';
 
 export class DefenseManager {
   constructor(scene) {
@@ -101,6 +102,56 @@ export class DefenseManager {
   _buildMesh(group, typeId, level) {
     const stats = DEFENSE_TYPES[typeId].levels[level];
 
+    // Try loaded GLB model first
+    const modelKey = { SOLAR_PANEL: 'solarPanel', WIND_TURBINE: 'windTurbine', TURRET: 'turret', FENCE: 'fence' }[typeId];
+    if (modelKey && Models.has(modelKey)) {
+      const model = Models.getClone(modelKey);
+      if (model) {
+        // Scale to fit game grid cells (~4 units)
+        const scaleMap = { solarPanel: 0.3, windTurbine: 1.5, turret: 0.015, fence: 0.8 };
+        model.scale.setScalar(scaleMap[modelKey] || 1.0);
+        model.name = 'defMesh';
+
+        // For wind turbine, find and tag the blade sub-mesh for rotation
+        if (typeId === 'WIND_TURBINE') {
+          model.traverse(child => {
+            if (child.name && child.name.toLowerCase().includes('blade')) {
+              group.userData.bladePivot = child;
+            }
+          });
+        }
+
+        // For turret, find barrel for aiming
+        if (typeId === 'TURRET') {
+          model.traverse(child => {
+            if (child.name && child.name === 'Turret') {
+              group.userData.turretPivot = child;
+            }
+          });
+        }
+
+        group.add(model);
+
+        // Level visual modifier — scale up slightly per level
+        const levelBoost = 1 + level * 0.1;
+        model.scale.multiplyScalar(levelBoost);
+
+        // Electric fence glow at level 3
+        if (typeId === 'FENCE' && stats.electric) {
+          const glowMat = new THREE.MeshBasicMaterial({
+            color: 0x44aaff, transparent: true, opacity: 0.3,
+          });
+          const glow = new THREE.Mesh(new THREE.SphereGeometry(1.5, 8, 8), glowMat);
+          glow.position.y = 1.5;
+          glow.name = 'defMesh';
+          group.add(glow);
+        }
+
+        return; // model loaded, skip primitive
+      }
+    }
+
+    // === Fallback primitives (original code) ===
     if (typeId === 'SOLAR_PANEL') {
       const baseGeo = new THREE.BoxGeometry(0.4, 0.8, 0.4);
       const baseMat = new THREE.MeshStandardMaterial({ color: 0x777777 });

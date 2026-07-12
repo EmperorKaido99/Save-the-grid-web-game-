@@ -1,4 +1,6 @@
 import * as THREE from 'three';
+import { AnimationMixer } from 'three';
+import { Models } from './ModelLoader.js';
 
 // Character definitions — portable stats
 const CHARACTERS = {
@@ -92,43 +94,41 @@ export class Player {
 
   _buildCombatWorker() {
     const g = new THREE.Group();
-    const def = CHARACTERS.COMBAT;
 
-    // Body
-    const body = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.4, 0.5, 1.6, 8),
-      new THREE.MeshStandardMaterial({ color: def.bodyColor })
-    );
-    body.position.y = 1.3;
-    body.castShadow = true;
-    g.add(body);
+    const model = Models.getClone('combatWorker');
+    if (model) {
+      // Scale and position the loaded model to match game units
+      model.scale.setScalar(1.6);
+      model.position.y = 0;
+      model.name = 'model';
+      g.add(model);
 
-    // Head
-    const head = new THREE.Mesh(
-      new THREE.SphereGeometry(0.35, 8, 8),
-      new THREE.MeshStandardMaterial({ color: 0xddaa77 })
-    );
-    head.position.y = 2.4;
-    head.castShadow = true;
-    g.add(head);
+      // Play the baked animation if available
+      const anims = Models.getAnimations('combatWorker');
+      if (anims.length > 0) {
+        this._combatMixer = new AnimationMixer(model);
+        const action = this._combatMixer.clipAction(anims[0]);
+        action.play();
+      }
+    } else {
+      // Fallback primitive
+      const def = CHARACTERS.COMBAT;
+      const body = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.4, 0.5, 1.6, 8),
+        new THREE.MeshStandardMaterial({ color: def.bodyColor })
+      );
+      body.position.y = 1.3;
+      body.castShadow = true;
+      g.add(body);
+      const head = new THREE.Mesh(
+        new THREE.SphereGeometry(0.35, 8, 8),
+        new THREE.MeshStandardMaterial({ color: 0xddaa77 })
+      );
+      head.position.y = 2.4;
+      g.add(head);
+    }
 
-    // Hard hat (yellow)
-    const hat = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.42, 0.45, 0.25, 8),
-      new THREE.MeshStandardMaterial({ color: def.hatColor })
-    );
-    hat.position.y = 2.7;
-    g.add(hat);
-
-    // Stun gun
-    const gun = new THREE.Mesh(
-      new THREE.BoxGeometry(0.15, 0.15, 0.6),
-      new THREE.MeshStandardMaterial({ color: def.toolColor })
-    );
-    gun.position.set(0.55, 1.5, -0.3);
-    g.add(gun);
-
-    // Stun flash
+    // Stun flash (always added for ability feedback)
     const flash = new THREE.Mesh(
       new THREE.SphereGeometry(0.3, 6, 6),
       new THREE.MeshBasicMaterial({ color: 0x44ddff, transparent: true, opacity: 0.8 })
@@ -138,14 +138,6 @@ export class Player {
     flash.name = 'flash';
     g.add(flash);
 
-    // Shoulder armor
-    const armor = new THREE.Mesh(
-      new THREE.BoxGeometry(0.3, 0.2, 0.5),
-      new THREE.MeshStandardMaterial({ color: 0x334466 })
-    );
-    armor.position.set(-0.5, 1.8, 0);
-    g.add(armor);
-
     // Store base Y for bob
     g.children.forEach(c => { c.userData.baseY = c.position.y; });
 
@@ -154,62 +146,33 @@ export class Player {
 
   _buildRepairWorker() {
     const g = new THREE.Group();
-    const def = CHARACTERS.REPAIR;
 
-    // Body (orange hi-vis)
-    const body = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.4, 0.5, 1.6, 8),
-      new THREE.MeshStandardMaterial({ color: def.bodyColor })
-    );
-    body.position.y = 1.3;
-    body.castShadow = true;
-    g.add(body);
+    const model = Models.getClone('repairWorker');
+    if (model) {
+      // Scale to match game units (static mesh, no skeleton)
+      model.scale.setScalar(0.014); // large model needs heavy downscale
+      model.position.y = 0;
+      model.name = 'model';
+      g.add(model);
+    } else {
+      // Fallback primitive
+      const def = CHARACTERS.REPAIR;
+      const body = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.4, 0.5, 1.6, 8),
+        new THREE.MeshStandardMaterial({ color: def.bodyColor })
+      );
+      body.position.y = 1.3;
+      body.castShadow = true;
+      g.add(body);
+      const head = new THREE.Mesh(
+        new THREE.SphereGeometry(0.35, 8, 8),
+        new THREE.MeshStandardMaterial({ color: 0xddaa77 })
+      );
+      head.position.y = 2.4;
+      g.add(head);
+    }
 
-    // Hi-vis stripes
-    const stripe = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.42, 0.52, 0.12, 8),
-      new THREE.MeshBasicMaterial({ color: 0xffff44 })
-    );
-    stripe.position.y = 1.0;
-    g.add(stripe);
-    const stripe2 = stripe.clone();
-    stripe2.position.y = 1.5;
-    g.add(stripe2);
-
-    // Head
-    const head = new THREE.Mesh(
-      new THREE.SphereGeometry(0.35, 8, 8),
-      new THREE.MeshStandardMaterial({ color: 0xddaa77 })
-    );
-    head.position.y = 2.4;
-    head.castShadow = true;
-    g.add(head);
-
-    // White hard hat
-    const hat = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.42, 0.45, 0.25, 8),
-      new THREE.MeshStandardMaterial({ color: def.hatColor })
-    );
-    hat.position.y = 2.7;
-    g.add(hat);
-
-    // Wrench
-    const wrenchHandle = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.05, 0.05, 0.7, 6),
-      new THREE.MeshStandardMaterial({ color: def.toolColor })
-    );
-    wrenchHandle.position.set(0.55, 1.5, -0.2);
-    wrenchHandle.rotation.x = 0.3;
-    g.add(wrenchHandle);
-
-    const wrenchHead = new THREE.Mesh(
-      new THREE.BoxGeometry(0.25, 0.08, 0.15),
-      new THREE.MeshStandardMaterial({ color: 0xaabb33 })
-    );
-    wrenchHead.position.set(0.55, 1.5, -0.6);
-    g.add(wrenchHead);
-
-    // Repair glow (shown when repairing)
+    // Repair glow (always added for ability feedback)
     const glow = new THREE.Mesh(
       new THREE.SphereGeometry(0.4, 6, 6),
       new THREE.MeshBasicMaterial({ color: 0x44ff88, transparent: true, opacity: 0.6 })
@@ -218,14 +181,6 @@ export class Player {
     glow.visible = false;
     glow.name = 'flash';
     g.add(glow);
-
-    // Tool belt
-    const belt = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.48, 0.48, 0.15, 8),
-      new THREE.MeshStandardMaterial({ color: 0x554422 })
-    );
-    belt.position.y = 0.7;
-    g.add(belt);
 
     // Store base Y for bob
     g.children.forEach(c => { c.userData.baseY = c.position.y; });
@@ -393,6 +348,11 @@ export class Player {
     if (this._partnerMesh) {
       const arrow = this._partnerMesh.children[0];
       if (arrow) arrow.position.y = 3.5 + Math.sin(performance.now() * 0.003) * 0.3;
+    }
+
+    // --- Animation mixers ---
+    if (this._combatMixer && this.activeChar === 'COMBAT') {
+      this._combatMixer.update(dt);
     }
 
     // --- Cooldown ---

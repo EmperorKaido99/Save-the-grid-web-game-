@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { ENEMY_TYPES } from './data/enemies.js';
+import { Models } from './ModelLoader.js';
 
 export class EnemyManager {
   constructor(scene) {
@@ -15,45 +16,58 @@ export class EnemyManager {
 
     const group = new THREE.Group();
 
-    // Body
-    const bodyH = 1.4 * def.scale;
-    const bodyGeo = new THREE.CylinderGeometry(
-      0.35 * def.scale, 0.45 * def.scale, bodyH, 8
-    );
-    const bodyMat = new THREE.MeshStandardMaterial({ color: def.color });
-    const body = new THREE.Mesh(bodyGeo, bodyMat);
-    body.position.y = bodyH / 2 + 0.1;
-    body.castShadow = true;
-    group.add(body);
+    // Try to load the real model, fallback to primitive
+    const modelKey = typeId === 'LOOTER' ? 'looter' :
+                     typeId === 'CABLE_THIEF' ? 'cableThief' : null;
+    const model = modelKey ? Models.getClone(modelKey) : null;
 
-    // Head
-    const headGeo = new THREE.SphereGeometry(0.3 * def.scale, 8, 8);
-    const headMat = new THREE.MeshStandardMaterial({ color: 0xccaa88 });
-    const head = new THREE.Mesh(headGeo, headMat);
-    head.position.y = bodyH + 0.4 * def.scale;
-    head.castShadow = true;
-    group.add(head);
+    if (model) {
+      // Scale models to match game units
+      const scaleMap = { looter: 0.8, cableThief: 0.02 };
+      model.scale.setScalar(scaleMap[modelKey] || 1.0);
+      model.name = 'model';
+      group.add(model);
+    } else {
+      // Fallback primitive
+      const bodyH = 1.4 * def.scale;
+      const body = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.35 * def.scale, 0.45 * def.scale, bodyH, 8),
+        new THREE.MeshStandardMaterial({ color: def.color })
+      );
+      body.position.y = bodyH / 2 + 0.1;
+      body.castShadow = true;
+      group.add(body);
 
-    // Beanie/mask for visual flavor
-    if (typeId === 'CABLE_THIEF') {
-      const maskGeo = new THREE.CylinderGeometry(0.32 * def.scale, 0.32 * def.scale, 0.2, 8);
-      const maskMat = new THREE.MeshStandardMaterial({ color: 0x222222 });
-      const mask = new THREE.Mesh(maskGeo, maskMat);
-      mask.position.y = bodyH + 0.5 * def.scale;
-      group.add(mask);
-    }
-    if (typeId === 'VANDAL') {
-      // Sledgehammer
-      const hamGeo = new THREE.BoxGeometry(0.15, 1.2, 0.15);
-      const hamMat = new THREE.MeshStandardMaterial({ color: 0x553311 });
-      const ham = new THREE.Mesh(hamGeo, hamMat);
-      ham.position.set(0.5, 1.0, 0);
-      group.add(ham);
-      const hamHeadGeo = new THREE.BoxGeometry(0.35, 0.25, 0.25);
-      const hamHeadMat = new THREE.MeshStandardMaterial({ color: 0x666666 });
-      const hamHead = new THREE.Mesh(hamHeadGeo, hamHeadMat);
-      hamHead.position.set(0.5, 1.65, 0);
-      group.add(hamHead);
+      const head = new THREE.Mesh(
+        new THREE.SphereGeometry(0.3 * def.scale, 8, 8),
+        new THREE.MeshStandardMaterial({ color: 0xccaa88 })
+      );
+      head.position.y = bodyH + 0.4 * def.scale;
+      head.castShadow = true;
+      group.add(head);
+
+      if (typeId === 'CABLE_THIEF') {
+        const mask = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.32 * def.scale, 0.32 * def.scale, 0.2, 8),
+          new THREE.MeshStandardMaterial({ color: 0x222222 })
+        );
+        mask.position.y = bodyH + 0.5 * def.scale;
+        group.add(mask);
+      }
+      if (typeId === 'VANDAL') {
+        const ham = new THREE.Mesh(
+          new THREE.BoxGeometry(0.15, 1.2, 0.15),
+          new THREE.MeshStandardMaterial({ color: 0x553311 })
+        );
+        ham.position.set(0.5, 1.0, 0);
+        group.add(ham);
+        const hamHead = new THREE.Mesh(
+          new THREE.BoxGeometry(0.35, 0.25, 0.25),
+          new THREE.MeshStandardMaterial({ color: 0x666666 })
+        );
+        hamHead.position.set(0.5, 1.65, 0);
+        group.add(hamHead);
+      }
     }
 
     // Health bar

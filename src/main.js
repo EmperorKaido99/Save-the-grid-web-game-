@@ -1,15 +1,23 @@
+import { Models } from './ModelLoader.js';
 import { Game } from './Game.js';
 
-const game = new Game();
-window.__game = game; // debug handle
+async function init() {
+  // Load all 3D models before starting the game
+  await Models.loadAll();
 
-let lastTime = performance.now();
+  const game = new Game();
+  window.__game = game; // debug handle
 
-function loop(now) {
-  const dt = (now - lastTime) / 1000;
-  lastTime = now;
-  game.update(dt);
+  let lastTime = performance.now();
+
+  function loop(now) {
+    const dt = (now - lastTime) / 1000;
+    lastTime = now;
+    game.update(dt);
+    requestAnimationFrame(loop);
+  }
+
   requestAnimationFrame(loop);
 }
 
-requestAnimationFrame(loop);
+init();
