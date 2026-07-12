@@ -493,3 +493,139 @@ canvas {
   color: rgba(255, 96, 96, 0.9);
   text-shadow: 0 0 10px rgba(255, 96, 96, 0.5);
 }
+
+/* ─── Station Health Bar (bottom center) ─── */
+.station-bar {
+  position: fixed;
+  bottom: 40px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 320px;
+  z-index: 15;
+  pointer-events: none;
+  text-align: center;
+}
+
+.station-bar-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  color: rgba(255, 255, 255, 0.5);
+  margin-bottom: 4px;
+}
+
+.station-bar-track {
+  width: 100%;
+  height: 14px;
+  background: rgba(0, 0, 0, 0.6);
+  border: 1px solid rgba(100, 255, 150, 0.25);
+  border-radius: 7px;
+  overflow: hidden;
+}
+
+.station-bar-fill {
+  height: 100%;
+  width: 100%;
+  background: linear-gradient(90deg, #22aa55, #44ff88);
+  border-radius: 7px;
+  transition: width 0.2s ease;
+}
+
+.station-bar-text {
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.6);
+  margin-top: 3px;
+}
+
+/* ─── Stun Gun Cooldown Bar (bottom right) ─── */
+.cooldown-bar {
+  position: fixed;
+  bottom: 40px;
+  right: 30px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  z-index: 15;
+  pointer-events: none;
+}
+
+.cooldown-icon {
+  font-size: 20px;
+  filter: drop-shadow(0 0 6px rgba(68, 221, 255, 0.5));
+}
+
+.cooldown-track {
+  width: 100px;
+  height: 10px;
+  background: rgba(0, 0, 0, 0.6);
+  border: 1px solid rgba(68, 221, 255, 0.3);
+  border-radius: 5px;
+  overflow: hidden;
+}
+
+.cooldown-fill {
+  height: 100%;
+  width: 100%;
+  background: linear-gradient(90deg, #44ddff, #88eeff);
+  border-radius: 5px;
+  transition: width 0.05s linear;
+}
+
+.cooldown-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: rgba(68, 221, 255, 0.7);
+}
+
+/* ─── Repair Progress Ring (bottom right) ─── */
+.repair-ring {
+  position: fixed;
+  bottom: 30px;
+  right: 30px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  z-index: 15;
+  pointer-events: none;
+}
+
+.repair-svg {
+  width: 48px;
+  height: 48px;
+}
+
+.repair-ring-bg {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.1);
+  stroke-width: 4;
+}
+
+.repair-ring-fill {
+  fill: none;
+  stroke: #225533;
+  stroke-width: 4;
+  stroke-linecap: round;
+  stroke-dasharray: 125.66;
+  stroke-dashoffset: 125.66;
+  transform: rotate(-90deg);
+  transform-origin: center;
+  transition: stroke 0.2s;
+}
+
+.repair-ring-icon {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 18px;
+}
+
+.repair-ring-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: rgba(68, 255, 136, 0.7);
+}

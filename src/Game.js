@@ -95,6 +95,8 @@ export class Game {
     this.defenses.showRanges();
     this.player.hide();
     this.ui.showGodPanel();
+    this.ui.hideStationBar();
+    this.ui.hideAbilityHUD();
     this.ui.updateWave(this.waves.waveNumber, this.waves.totalWaves);
     this.selectedUpgradeTarget = null;
     this._selectionRing.visible = false;
@@ -113,6 +115,8 @@ export class Game {
     this.player.show();
     this.ui.hideGodPanel();
     this.ui.showCrosshair();
+    this.ui.showStationBar();
+    this.ui.showAbilityHUD(this.player.activeChar);
     this.selectedUpgradeTarget = null;
     this._selectionRing.visible = false;
 
@@ -142,6 +146,8 @@ export class Game {
     this.input.wantsLock = false;
     this.input.exitLock();
     this.ui.hideLockHint();
+    this.ui.hideStationBar();
+    this.ui.hideAbilityHUD();
     this.ui.showEndScreen(false, {
       waves: this.waves.waveNumber - 1,
       earned: this.economy.totalEarned,
@@ -154,6 +160,8 @@ export class Game {
     this.input.wantsLock = false;
     this.input.exitLock();
     this.ui.hideLockHint();
+    this.ui.hideStationBar();
+    this.ui.hideAbilityHUD();
     this.ui.showEndScreen(true, {
       waves: this.waves.totalWaves,
       earned: this.economy.totalEarned,
@@ -293,6 +301,7 @@ export class Game {
       this._tabHeld = true;
       const newChar = this.player.switchCharacter();
       this.ui.updateActiveCharacter(newChar);
+      this.ui.showAbilityHUD(newChar);
       // Characters swap positions — snap the camera behind the new one
       this.cameras.snapBehind(this.player.position, this.cameras.yaw);
     }
@@ -340,6 +349,14 @@ export class Game {
 
     // Crosshair feedback for aim mode
     this.ui.setAiming(aiming);
+
+    // Update HUD bars
+    this.ui.updateStationBar(STATION.health, STATION.maxHealth);
+    if (this.player.activeChar === 'COMBAT') {
+      this.ui.updateCooldown(this.player.cooldownTimer, this.player.stats.abilityCooldown);
+    } else {
+      this.ui.updateRepairRing(this.player.isRepairing);
+    }
 
     // Player abilities — depends on active character
     const stats = this.player.stats;

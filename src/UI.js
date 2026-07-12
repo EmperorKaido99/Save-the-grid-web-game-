@@ -130,6 +130,43 @@ export class UI {
     this.repairIndicator.style.display = 'none';
     document.body.appendChild(this.repairIndicator);
 
+    // --- Station Health Bar (bottom center — prominent, labeled) ---
+    this.stationBar = this._div('station-bar');
+    this.stationBar.innerHTML = `
+      <div class="station-bar-label">POWER STATION</div>
+      <div class="station-bar-track">
+        <div class="station-bar-fill" id="station-bar-fill"></div>
+      </div>
+      <div class="station-bar-text" id="station-bar-text">500 / 500</div>
+    `;
+    this.stationBar.style.display = 'none';
+    document.body.appendChild(this.stationBar);
+
+    // --- Stun Gun Cooldown Bar (Combat Worker — bottom right) ---
+    this.cooldownBar = this._div('cooldown-bar');
+    this.cooldownBar.innerHTML = `
+      <div class="cooldown-icon">&#9889;</div>
+      <div class="cooldown-track">
+        <div class="cooldown-fill" id="cooldown-fill"></div>
+      </div>
+      <div class="cooldown-label">STUN GUN</div>
+    `;
+    this.cooldownBar.style.display = 'none';
+    document.body.appendChild(this.cooldownBar);
+
+    // --- Repair Progress Ring (Repair Worker — bottom right) ---
+    this.repairRing = this._div('repair-ring');
+    this.repairRing.innerHTML = `
+      <svg viewBox="0 0 48 48" class="repair-svg">
+        <circle cx="24" cy="24" r="20" class="repair-ring-bg"/>
+        <circle cx="24" cy="24" r="20" class="repair-ring-fill" id="repair-ring-fill"/>
+      </svg>
+      <div class="repair-ring-icon">&#128295;</div>
+      <div class="repair-ring-label">REPAIR</div>
+    `;
+    this.repairRing.style.display = 'none';
+    document.body.appendChild(this.repairRing);
+
     // --- Controls Help ---
     this.controlsHelp = this._div('controls-help');
     this.controlsHelp.innerHTML = `
@@ -318,6 +355,91 @@ export class UI {
   showFact(text) {
     document.getElementById('fact-text').textContent = text;
     this.factPopup.style.display = 'flex';
+  }
+
+  // --- Station Health Bar (bottom center) ---
+
+  showStationBar() {
+    this.stationBar.style.display = 'block';
+  }
+
+  hideStationBar() {
+    this.stationBar.style.display = 'none';
+  }
+
+  updateStationBar(current, max) {
+    const ratio = Math.max(0, current / max);
+    const fill = document.getElementById('station-bar-fill');
+    fill.style.width = `${ratio * 100}%`;
+
+    // Color shifts: green → yellow → red
+    if (ratio > 0.6) fill.style.background = 'linear-gradient(90deg, #22aa55, #44ff88)';
+    else if (ratio > 0.3) fill.style.background = 'linear-gradient(90deg, #aa8822, #ffcc44)';
+    else fill.style.background = 'linear-gradient(90deg, #aa2222, #ff4444)';
+
+    document.getElementById('station-bar-text').textContent =
+      `${Math.ceil(current)} / ${max}`;
+  }
+
+  // --- Stun Gun Cooldown Bar (Combat Worker) ---
+
+  showCooldownBar() {
+    this.cooldownBar.style.display = 'flex';
+  }
+
+  hideCooldownBar() {
+    this.cooldownBar.style.display = 'none';
+  }
+
+  updateCooldown(timer, maxCooldown) {
+    const ratio = Math.max(0, 1 - timer / maxCooldown);
+    const fill = document.getElementById('cooldown-fill');
+    fill.style.width = `${ratio * 100}%`;
+    fill.style.background = ratio >= 1
+      ? 'linear-gradient(90deg, #44ddff, #88eeff)'
+      : 'linear-gradient(90deg, #225577, #336688)';
+  }
+
+  // --- Repair Progress Ring (Repair Worker) ---
+
+  showRepairRing() {
+    this.repairRing.style.display = 'flex';
+  }
+
+  hideRepairRing() {
+    this.repairRing.style.display = 'none';
+  }
+
+  updateRepairRing(active) {
+    const fill = document.getElementById('repair-ring-fill');
+    // circumference = 2 * PI * r = 2 * PI * 20 ≈ 125.66
+    const circ = 125.66;
+    if (active) {
+      // Animate the ring fill — pulse when actively repairing
+      const t = (performance.now() % 1000) / 1000;
+      fill.style.strokeDashoffset = circ * (1 - t);
+      fill.style.stroke = '#44ff88';
+    } else {
+      fill.style.strokeDashoffset = circ;
+      fill.style.stroke = '#225533';
+    }
+  }
+
+  // --- Character-specific ability HUD ---
+
+  showAbilityHUD(charId) {
+    if (charId === 'COMBAT') {
+      this.showCooldownBar();
+      this.hideRepairRing();
+    } else {
+      this.hideCooldownBar();
+      this.showRepairRing();
+    }
+  }
+
+  hideAbilityHUD() {
+    this.hideCooldownBar();
+    this.hideRepairRing();
   }
 
   showAnnouncement(title, subtitle) {
