@@ -17,6 +17,9 @@ export class EnemyManager {
 
     const group = new THREE.Group();
 
+    // bodyH used for health-bar placement — set a default for loaded models
+    let bodyH = 1.4 * def.scale;
+
     // Try to load the real model, fallback to primitive
     const modelKey = typeId === 'LOOTER' ? 'looter' :
                      typeId === 'CABLE_THIEF' ? 'cableThief' : null;
@@ -30,7 +33,6 @@ export class EnemyManager {
       group.add(model);
     } else {
       // Fallback primitive
-      const bodyH = 1.4 * def.scale;
       const body = new THREE.Mesh(
         new THREE.CylinderGeometry(0.35 * def.scale, 0.45 * def.scale, bodyH, 8),
         new THREE.MeshStandardMaterial({ color: def.color })
