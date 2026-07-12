@@ -6,6 +6,7 @@ export class EnemyManager {
   constructor(scene) {
     this.scene = scene;
     this.enemies = [];
+    this.lootObjects = [];    // dropped loot from destroyed defenses
     this.spawnDistance = 50;   // how far from station
     this.spawnWidth = 40;     // lateral spread
   }
@@ -171,6 +172,20 @@ export class EnemyManager {
       dir.y = 0;
       const dist = dir.length();
 
+      // If carrying loot, flee toward spawn edge (mission complete for this thief)
+      if (e.carryingLoot) {
+        const fleeDir = new THREE.Vector3(0, 0, -1); // back toward spawn
+        e.group.position.addScaledVector(fleeDir, e.def.speed * 0.7 * dt);
+        e.group.rotation.y = Math.atan2(fleeDir.x, fleeDir.z);
+        // Despawn when far enough
+        if (e.group.position.z < -(this.spawnDistance + 10)) {
+          e.alive = false;
+          e.rewardCredited = true; // no reward for escaped thieves
+          e.group.visible = false;
+        }
+        continue;
+      }
+
       if (dist > 1.5) {
         dir.normalize();
         e.group.position.addScaledVector(dir, e.def.speed * dt);
@@ -182,6 +197,11 @@ export class EnemyManager {
           e.attackTimer = e.def.attackCooldown;
           if (e.target && e.target.alive) {
             e.target.health -= e.def.damage;
+
+            // Check if this attack destroyed the defense
+            if (e.target.health <= 0 && e.target.type) {
+              this._spawnLoot(e.target, e);
+            }
           } else {
             // Attack station
             station.health -= e.def.damage;
@@ -246,10 +266,144 @@ export class EnemyManager {
     return this.enemies.filter(e => e.alive).length;
   }
 
+  // --- Loot-drop system ---
+
+  _spawnLoot(defense, attacker) {
+    const pos = defense.group.position.clone();
+    const lootGroup = new THREE.Group();
+
+    if (defense.type === 'SOLAR_PANEL') {
+      // Broken panel fragments + metal beams
+      const panel = new THREE.Mesh(
+        new THREE.BoxGeometry(1.8, 0.08, 1.5),
+        new THREE.MeshStandardMaterial({ color: 0x1a3d6f, metalness: 0.5, roughness: 0.6 })
+      );
+      panel.rotation.x = 0.3;
+      panel.rotation.z = 0.15;
+      panel.position.y = 0.4;
+      lootGroup.add(panel);
+
+      // Snapped support beam
+      const beam = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.05, 0.05, 1.2, 6),
+        new THREE.MeshStandardMaterial({ color: 0x888888 })
+      );
+      beam.position.set(0.3, 0.6, 0);
+      beam.rotation.z = 0.4;
+      lootGroup.add(beam);
+
+      // Loose cable
+      const cable = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.02, 0.02, 0.8, 4),
+        new THREE.MeshStandardMaterial({ color: 0xcc4400 })
+      );
+      cable.position.set(-0.4, 0.2, 0.3);
+      cable.rotation.x = 1.2;
+      lootGroup.add(cable);
+    } else if (defense.type === 'WIND_TURBINE') {
+      // Twisted metal sheet from turbine
+      const sheet = new THREE.Mesh(
+        new THREE.BoxGeometry(2.0, 0.06, 1.2),
+        new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0.7, roughness: 0.3 })
+      );
+      sheet.rotation.set(0.2, 0.5, -0.3);
+      sheet.position.y = 0.5;
+      lootGroup.add(sheet);
+
+      // Bent blade fragment
+      const blade = new THREE.Mesh(
+        new THREE.BoxGeometry(0.15, 2.0, 0.04),
+        new THREE.MeshStandardMaterial({ color: 0xeeeeee })
+      );
+      blade.position.set(0.5, 1.0, 0);
+      blade.rotation.z = 0.6;
+      lootGroup.add(blade);
+    } else {
+      // Generic scrap for fence/turret
+      const scrap = new THREE.Mesh(
+        new THREE.BoxGeometry(0.8, 0.5, 0.6),
+        new THREE.MeshStandardMaterial({ color: 0x777777, metalness: 0.4 })
+      );
+      scrap.position.y = 0.3;
+      lootGroup.add(scrap);
+    }
+
+    lootGroup.position.copy(pos);
+    lootGroup.position.y = 0;
+    this.scene.add(lootGroup);
+
+    const loot = { group: lootGroup, type: defense.type, fadeTimer: null, carrier: null };
+
+    // If a Cable Thief destroyed it, attach loot to the thief
+    if (attacker.type === 'CABLE_THIEF') {
+      this._attachLootToThief(loot, attacker);
+    } else {
+      // Loot just sits and fades out after a few seconds
+      loot.fadeTimer = 5.0;
+    }
+
+    this.lootObjects.push(loot);
+  }
+
+  _attachLootToThief(loot, enemy) {
+    // Parent loot to the enemy group (carried on back)
+    this.scene.remove(loot.group);
+    loot.group.position.set(0, 1.8, 0.4); // on the back/shoulder
+    loot.group.scale.setScalar(0.5);       // shrink to carry size
+    enemy.group.add(loot.group);
+    loot.carrier = enemy;
+    enemy.carryingLoot = loot;
+  }
+
+  updateLoot(dt) {
+    for (let i = this.lootObjects.length - 1; i >= 0; i--) {
+      const loot = this.lootObjects[i];
+
+      // If carrier died, drop the loot on the ground (no recovery — purely visual)
+      if (loot.carrier && !loot.carrier.alive) {
+        const worldPos = new THREE.Vector3();
+        loot.group.getWorldPosition(worldPos);
+        loot.carrier.group.remove(loot.group);
+        loot.group.position.copy(worldPos);
+        loot.group.position.y = 0;
+        loot.group.scale.setScalar(1);
+        this.scene.add(loot.group);
+        loot.carrier = null;
+        loot.fadeTimer = 3.0; // fade out after drop
+      }
+
+      // Fade out unclaimed loot
+      if (loot.fadeTimer !== null) {
+        loot.fadeTimer -= dt;
+        if (loot.fadeTimer <= 1.0) {
+          // Fade opacity
+          loot.group.traverse(child => {
+            if (child.isMesh && child.material) {
+              child.material.transparent = true;
+              child.material.opacity = Math.max(0, loot.fadeTimer);
+            }
+          });
+        }
+        if (loot.fadeTimer <= 0) {
+          this.scene.remove(loot.group);
+          this.lootObjects.splice(i, 1);
+        }
+      }
+    }
+  }
+
   clearAll() {
     for (const e of this.enemies) {
       this.scene.remove(e.group);
     }
     this.enemies = [];
+    for (const l of this.lootObjects) {
+      if (l.carrier) {
+        // already parented to enemy group, removed above
+      } else {
+        this.scene.remove(l.group);
+      }
+    }
+    this.lootObjects = [];
   }
 }

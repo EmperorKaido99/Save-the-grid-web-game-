@@ -371,6 +371,9 @@ export class Game {
     // Update enemies
     this.enemies.update(dt, this.defenses.aliveDefenses, STATION);
 
+    // Update loot objects (fade, drop from dead carriers)
+    this.enemies.updateLoot(dt);
+
     // Update defenses (auto-attack + station healing)
     this.defenses.update(dt, this.enemies);
 
