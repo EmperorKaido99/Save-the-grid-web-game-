@@ -255,6 +255,10 @@ export class UI {
       ? 'rgba(68, 255, 136, 0.7)' : 'rgba(68, 221, 255, 0.7)';
   }
 
+  hideFact() {
+    this.factPopup.style.display = 'none';
+  }
+
   setAiming(aiming) {
     if (this._aiming === aiming) return;
     this._aiming = aiming;

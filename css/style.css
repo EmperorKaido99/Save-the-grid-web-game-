@@ -629,3 +629,123 @@ canvas {
   letter-spacing: 1px;
   color: rgba(68, 255, 136, 0.7);
 }
+
+/* ─── Touch controls (mobile) ─── */
+.touch-controls {
+  position: fixed;
+  inset: 0;
+  z-index: 18;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.touch-zone {
+  position: absolute;
+  bottom: 0;
+  height: 62%;
+  pointer-events: auto;
+  touch-action: none;
+}
+#tc-move-zone { left: 0; width: 44%; }
+#tc-look-zone { right: 0; width: 56%; }
+
+#tc-joy-base {
+  display: none;
+  position: absolute;
+  width: 110px;
+  height: 110px;
+  margin: -55px 0 0 -55px;
+  border-radius: 50%;
+  background: rgba(68, 221, 255, 0.08);
+  border: 2px solid rgba(68, 221, 255, 0.35);
+  pointer-events: none;
+}
+#tc-joy-knob {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: rgba(68, 221, 255, 0.45);
+  border: 2px solid rgba(68, 221, 255, 0.8);
+  transform: translate(-50%, -50%);
+}
+
+.tc-btn {
+  position: absolute;
+  width: 62px;
+  height: 62px;
+  border-radius: 50%;
+  border: 2px solid rgba(68, 221, 255, 0.5);
+  background: rgba(10, 16, 30, 0.6);
+  color: #cfe9ff;
+  font-size: 24px;
+  pointer-events: auto;
+  touch-action: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.tc-btn.active {
+  background: rgba(68, 221, 255, 0.4);
+  border-color: rgba(68, 221, 255, 0.95);
+}
+.tc-fire {
+  right: 22px;
+  bottom: 96px;
+  width: 84px;
+  height: 84px;
+  font-size: 34px;
+  border-color: rgba(255, 120, 80, 0.6);
+}
+.tc-fire.active { background: rgba(255, 120, 80, 0.4); border-color: rgba(255, 140, 90, 1); }
+#tc-aim    { right: 122px; bottom: 78px; }
+#tc-jump   { right: 32px;  bottom: 200px; }
+#tc-sprint { right: 132px; bottom: 158px; }
+.tc-switch { right: 20px; top: 64px; border-color: rgba(120, 255, 160, 0.5); }
+
+/* ─── Mobile / small-screen layout ─── */
+@media (max-width: 820px) {
+  .hud { top: 4px; left: 4px; right: 4px; transform: none; }
+  .hud-row { flex-wrap: wrap; gap: 4px; justify-content: center; }
+  .hud-item { padding: 4px 8px; font-size: 11px; }
+
+  .god-panel {
+    top: auto;
+    right: 0;
+    left: 0;
+    bottom: 0;
+    width: auto;
+    max-height: 46vh;
+    border-radius: 14px 14px 0 0;
+    padding: 12px 14px 16px;
+  }
+  .god-panel h2 { font-size: 15px; margin-bottom: 2px; }
+  .defense-btn { padding: 8px 10px; }
+  .big-btn { padding: 12px; font-size: 16px; }
+
+  .controls-help { display: none; }
+
+  .upgrade-panel { left: 50%; top: 40%; transform: translate(-50%, -50%); }
+
+  .station-bar { bottom: 4px; width: 46vw; }
+  /* Ability HUD tucks into the bottom-left corner, clear of touch buttons */
+  .cooldown-bar, .repair-ring {
+    left: 8px;
+    right: auto;
+    bottom: 8px;
+    transform: scale(0.8);
+    transform-origin: bottom left;
+  }
+
+  .wave-announce h1 { font-size: 26px; }
+  .wave-announce p { font-size: 14px; }
+  .lock-hint { display: none !important; }
+
+  .fact-popup .fact-content { max-width: 86vw; }
+  .end-content { max-width: 90vw; padding: 20px; }
+}
+
+/* Prevent touch scrolling/zooming from fighting the game canvas */
+#game-container canvas { touch-action: none; }

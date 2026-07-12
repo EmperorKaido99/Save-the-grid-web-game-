@@ -9,6 +9,7 @@ import { EnemyManager } from './EnemyManager.js';
 import { DefenseManager } from './DefenseManager.js';
 import { WaveManager } from './WaveManager.js';
 import { UI } from './UI.js';
+import { TouchControls } from './TouchControls.js';
 import { getRandomFact } from './data/funFacts.js';
 import { DEFENSE_TYPES, getUpgradeCost } from './data/defenses.js';
 
@@ -41,6 +42,7 @@ export class Game {
     this.defenses = new DefenseManager(this.scene);
     this.waves = new WaveManager();
     this.ui = new UI();
+    this.touch = new TouchControls(this.input);
 
     // State
     this.state = State.GOD_MODE;
@@ -90,6 +92,7 @@ export class Game {
     this.input.exitLock();
     this.ui.hideLockHint();
     this.ui.setAiming(false);
+    this.touch.hide();
     this.cameras.setGodMode();
     this.grid.show();
     this.defenses.showRanges();
@@ -109,11 +112,13 @@ export class Game {
     this.cameras.setCharacterMode();
     this.cameras.snapBehind(this.player.position, this.player.rotationY);
     this.input.wantsLock = true;
-    this.input.requestLock();
+    if (!this.touch.enabled) this.input.requestLock();
+    this.touch.show();
     this.grid.hide();
     this.defenses.hideRanges();
     this.player.show();
     this.ui.hideGodPanel();
+    this.ui.hideFact();
     this.ui.showCrosshair();
     this.ui.showStationBar();
     this.ui.showAbilityHUD(this.player.activeChar);
@@ -146,6 +151,7 @@ export class Game {
     this.input.wantsLock = false;
     this.input.exitLock();
     this.ui.hideLockHint();
+    this.touch.hide();
     this.ui.hideStationBar();
     this.ui.hideAbilityHUD();
     this.ui.showEndScreen(false, {
@@ -160,6 +166,7 @@ export class Game {
     this.input.wantsLock = false;
     this.input.exitLock();
     this.ui.hideLockHint();
+    this.touch.hide();
     this.ui.hideStationBar();
     this.ui.hideAbilityHUD();
     this.ui.showEndScreen(true, {
@@ -329,7 +336,7 @@ export class Game {
 
     // Edge-glide: without pointer lock the cursor stops at the screen border,
     // so keep turning while it's pushed against an edge (like an RTS camera)
-    if (!this.input.isLocked) {
+    if (!this.input.isLocked && !this.touch.enabled) {
       const margin = 40;
       const mx = this.input.mouse.x, my = this.input.mouse.y;
       let gx = 0, gy = 0;

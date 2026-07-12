@@ -261,7 +261,12 @@ export class Player {
     if (input.isKeyDown('KeyS') || input.isKeyDown('ArrowDown')) fwd -= 1;
     if (input.isKeyDown('KeyA') || input.isKeyDown('ArrowLeft')) strafe -= 1;
     if (input.isKeyDown('KeyD') || input.isKeyDown('ArrowRight')) strafe += 1;
-    const hasInput = fwd !== 0 || strafe !== 0;
+    // Virtual joystick (mobile) feeds the same movement path
+    if (input.touchMove) {
+      fwd += input.touchMove.y;
+      strafe += input.touchMove.x;
+    }
+    const hasInput = Math.abs(fwd) > 0.01 || Math.abs(strafe) > 0.01;
 
     this.sprinting = !aiming && hasInput && fwd > 0 &&
       (input.isKeyDown('ShiftLeft') || input.isKeyDown('ShiftRight'));
