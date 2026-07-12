@@ -97,18 +97,17 @@ export class Player {
 
     const model = Models.getClone('combatWorker');
     if (model) {
-      // Scale and position the loaded model to match game units
-      model.scale.setScalar(1.6);
-      model.position.y = 0;
+      // ModelLoader normalizes scale/ground offset/facing — use as-is
       model.name = 'model';
       g.add(model);
+      g.userData.hasModel = true;
 
-      // Play the baked animation if available
+      // Play the baked animation if available (timeScale driven by speed)
       const anims = Models.getAnimations('combatWorker');
       if (anims.length > 0) {
         this._combatMixer = new AnimationMixer(model);
-        const action = this._combatMixer.clipAction(anims[0]);
-        action.play();
+        this._combatAction = this._combatMixer.clipAction(anims[0]);
+        this._combatAction.play();
       }
     } else {
       // Fallback primitive
@@ -149,11 +148,10 @@ export class Player {
 
     const model = Models.getClone('repairWorker');
     if (model) {
-      // Scale to match game units (static mesh, no skeleton)
-      model.scale.setScalar(0.014); // large model needs heavy downscale
-      model.position.y = 0;
+      // ModelLoader normalizes scale/ground offset/facing — use as-is
       model.name = 'model';
       g.add(model);
+      g.userData.hasModel = true;
     } else {
       // Fallback primitive
       const def = CHARACTERS.REPAIR;
@@ -329,20 +327,22 @@ export class Player {
     this._lean = THREE.MathUtils.damp(this._lean, wantLean, 10, dt);
     this.group.rotation.z = this._lean;
 
-    // --- Walking bob (grounded only; faster while sprinting) ---
+    // --- Walking bob (primitive fallback only — GLB models animate instead) ---
     const activeGroup = this.activeChar === 'COMBAT' ? this._combatGroup : this._repairGroup;
-    if (this.moving && this.grounded) {
-      this._bobTime += dt * currentSpeed * (this.sprinting ? 1.8 : 1.5);
-      this._bobOffset = Math.abs(Math.sin(this._bobTime)) * 0.12;
-    } else {
-      this._bobTime = 0;
-      this._bobOffset = THREE.MathUtils.lerp(this._bobOffset, 0, 10 * dt);
-    }
-    activeGroup.children.forEach(child => {
-      if (child.userData.baseY !== undefined) {
-        child.position.y = child.userData.baseY + this._bobOffset;
+    if (!activeGroup.userData.hasModel) {
+      if (this.moving && this.grounded) {
+        this._bobTime += dt * currentSpeed * (this.sprinting ? 1.8 : 1.5);
+        this._bobOffset = Math.abs(Math.sin(this._bobTime)) * 0.12;
+      } else {
+        this._bobTime = 0;
+        this._bobOffset = THREE.MathUtils.lerp(this._bobOffset, 0, 10 * dt);
       }
-    });
+      activeGroup.children.forEach(child => {
+        if (child.userData.baseY !== undefined) {
+          child.position.y = child.userData.baseY + this._bobOffset;
+        }
+      });
+    }
 
     // --- Partner idle bob (floating arrow) ---
     if (this._partnerMesh) {
@@ -350,8 +350,14 @@ export class Player {
       if (arrow) arrow.position.y = 3.5 + Math.sin(performance.now() * 0.003) * 0.3;
     }
 
-    // --- Animation mixers ---
+    // --- Animation mixers (clip speed follows movement speed) ---
     if (this._combatMixer && this.activeChar === 'COMBAT') {
+      if (this._combatAction) {
+        const target = this.moving ? Math.max(0.8, currentSpeed / stats.speed) * 1.2 : 0.55;
+        this._combatAction.timeScale = THREE.MathUtils.damp(
+          this._combatAction.timeScale, target, 8, dt
+        );
+      }
       this._combatMixer.update(dt);
     }
 

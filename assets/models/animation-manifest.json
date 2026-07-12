@@ -1,0 +1,49 @@
+{
+  "_comment": "Ground truth for the Mixamo pipeline: raw FBX name -> converted GLB name -> gameplay hook. Download each clip from Mixamo into assets/mixamo-raw/<character>/ using raw_filename, then run: node scripts/convert-mixamo.js <character>. Search terms per clip are in docs/mixamo-animation-plan.md.",
+  "combat_worker": {
+    "base": { "raw_filename": "base.fbx", "output_filename": "base.glb", "hook": "skinned mesh + skeleton (download 'with skin' once)" },
+    "clips": {
+      "idle":      { "raw_filename": "idle.fbx",      "output_filename": "idle.glb",      "hook": "locomotion=idle" },
+      "walk":      { "raw_filename": "walk.fbx",      "output_filename": "walk.glb",      "hook": "locomotion=walk" },
+      "run":       { "raw_filename": "run.fbx",       "output_filename": "run.glb",       "hook": "locomotion=run/sprint" },
+      "aim_idle":  { "raw_filename": "aim_idle.fbx",  "output_filename": "aim_idle.glb",  "hook": "aiming && !moving" },
+      "aim_walk":  { "raw_filename": "aim_walk.fbx",  "output_filename": "aim_walk.glb",  "hook": "aiming && moving (strafe)" },
+      "fire":      { "raw_filename": "fire.fbx",      "output_filename": "fire.glb",      "hook": "fire event (one-shot)" }
+    }
+  },
+  "repair_worker": {
+    "base": { "raw_filename": "base.fbx", "output_filename": "base.glb", "hook": "skinned mesh + skeleton" },
+    "clips": {
+      "idle":        { "raw_filename": "idle.fbx",        "output_filename": "idle.glb",        "hook": "locomotion=idle" },
+      "walk":        { "raw_filename": "walk.fbx",        "output_filename": "walk.glb",        "hook": "locomotion=walk" },
+      "run":         { "raw_filename": "run.fbx",         "output_filename": "run.glb",         "hook": "locomotion=run/sprint" },
+      "repair_loop": { "raw_filename": "repair_loop.fbx", "output_filename": "repair_loop.glb", "hook": "isRepairing (kneel/crouch loop)" }
+    }
+  },
+  "looter": {
+    "base": { "raw_filename": "base.fbx", "output_filename": "base.glb", "hook": "skinned mesh + skeleton" },
+    "clips": {
+      "walk":        { "raw_filename": "walk.fbx",        "output_filename": "walk.glb",        "hook": "moving toward target" },
+      "break_fence": { "raw_filename": "break_fence.fbx", "output_filename": "break_fence.glb", "hook": "attacking a FENCE" },
+      "attack":      { "raw_filename": "attack.fbx",      "output_filename": "attack.glb",      "hook": "attacking station/defense" },
+      "death":       { "raw_filename": "death.fbx",       "output_filename": "death.glb",       "hook": "health <= 0 (one-shot)" }
+    }
+  },
+  "cable_thief": {
+    "base": { "raw_filename": "base.fbx", "output_filename": "base.glb", "hook": "skinned mesh + skeleton" },
+    "clips": {
+      "run":    { "raw_filename": "run.fbx",    "output_filename": "run.glb",    "hook": "moving (fastest enemy)" },
+      "climb":  { "raw_filename": "climb.fbx",  "output_filename": "climb.glb",  "hook": "fenceBehavior=climb — TEST FOR ROOT-MOTION DRIFT FIRST (see plan doc)" },
+      "steal":  { "raw_filename": "steal.fbx",  "output_filename": "steal.glb",  "hook": "attacking a defense (grab/pick-up)" },
+      "death":  { "raw_filename": "death.fbx",  "output_filename": "death.glb",  "hook": "health <= 0 (one-shot)" }
+    }
+  },
+  "vandal": {
+    "base": { "raw_filename": "base.fbx", "output_filename": "base.glb", "hook": "skinned mesh + skeleton" },
+    "clips": {
+      "walk":         { "raw_filename": "walk.fbx",         "output_filename": "walk.glb",         "hook": "moving (play at ~0.6x rate, speed 1.8 enemy)" },
+      "heavy_attack": { "raw_filename": "heavy_attack.fbx", "output_filename": "heavy_attack.glb", "hook": "attacking (big hammer swing)" },
+      "death":        { "raw_filename": "death.fbx",        "output_filename": "death.glb",        "hook": "health <= 0 (one-shot)" }
+    }
+  }
+}

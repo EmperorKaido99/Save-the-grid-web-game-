@@ -26,11 +26,11 @@ export class EnemyManager {
     const model = modelKey ? Models.getClone(modelKey) : null;
 
     if (model) {
-      // Scale models to match game units
-      const scaleMap = { looter: 0.8, cableThief: 0.02 };
-      model.scale.setScalar(scaleMap[modelKey] || 1.0);
+      // ModelLoader normalizes to ~2.4 units tall; apply per-type size ratio
+      model.scale.setScalar(def.scale);
       model.name = 'model';
       group.add(model);
+      bodyH = 2.0 * def.scale; // health bar sits above the normalized model
     } else {
       // Fallback primitive
       const body = new THREE.Mesh(

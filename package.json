@@ -1,0 +1,13 @@
+{
+  "name": "save-the-grid",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Browser tower-defense / third-person hybrid built on Three.js",
+  "scripts": {
+    "serve": "python3 -m http.server 8000",
+    "convert-mixamo": "node scripts/convert-mixamo.js"
+  },
+  "devDependencies": {
+    "fbx2gltf": "^0.9.7"
+  }
+}

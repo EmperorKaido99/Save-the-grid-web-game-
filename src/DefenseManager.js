@@ -107,9 +107,7 @@ export class DefenseManager {
     if (modelKey && Models.has(modelKey)) {
       const model = Models.getClone(modelKey);
       if (model) {
-        // Scale to fit game grid cells (~4 units)
-        const scaleMap = { solarPanel: 0.3, windTurbine: 1.5, turret: 0.015, fence: 0.8 };
-        model.scale.setScalar(scaleMap[modelKey] || 1.0);
+        // ModelLoader normalizes size and grounds the model — use as-is
         model.name = 'defMesh';
 
         // For wind turbine, find and tag the blade sub-mesh for rotation
