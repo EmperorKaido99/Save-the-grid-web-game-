@@ -12,12 +12,11 @@
 
 const fs = require('fs');
 const path = require('path');
-const { execFileSync } = require('child_process');
 
 const ROOT = path.join(__dirname, '..');
 const MANIFEST = path.join(ROOT, 'assets/models/animation-manifest.json');
 
-function convertCharacter(name, manifest) {
+async function convertCharacter(name, manifest) {
   const entry = manifest[name];
   if (!entry) {
     console.error(`No manifest entry for "${name}". Known: ${Object.keys(manifest).filter(k => !k.startsWith('_')).join(', ')}`);
@@ -28,9 +27,9 @@ function convertCharacter(name, manifest) {
   const outDir = path.join(ROOT, 'assets/models/characters', name);
   fs.mkdirSync(outDir, { recursive: true });
 
-  let fbx2gltf;
+  let convert;
   try {
-    fbx2gltf = require('fbx2gltf');
+    convert = require('fbx2gltf'); // exports convert(src, dest, opts) -> Promise
   } catch {
     console.error('fbx2gltf is not installed. Run: npm install');
     process.exit(1);
@@ -46,16 +45,18 @@ function convertCharacter(name, manifest) {
       missing++;
       continue;
     }
-    // fbx2gltf exports a path to the platform binary
-    execFileSync(fbx2gltf, [
-      '--binary',
-      '--input', src,
-      '--output', dst.replace(/\.glb$/, ''),
-    ], { stdio: 'inherit' });
+    await convert(src, dst, ['--binary']);
     console.log(`  ${job.raw_filename} -> ${path.relative(ROOT, dst)}`);
     done++;
   }
   console.log(`${name}: ${done} converted, ${missing} missing raw FBX files`);
+
+  // Refresh index.json so the game only requests clip files that exist
+  const indexPath = path.join(ROOT, 'assets/models/characters/index.json');
+  let idx = {};
+  try { idx = JSON.parse(fs.readFileSync(indexPath, 'utf8')); } catch { /* fresh */ }
+  idx[name] = fs.readdirSync(outDir).filter(f => f.endsWith('.glb')).sort();
+  fs.writeFileSync(indexPath, JSON.stringify(idx, null, 2) + '\n');
 }
 
 const arg = process.argv[2];
@@ -65,7 +66,9 @@ if (!arg) {
 }
 const manifest = JSON.parse(fs.readFileSync(MANIFEST, 'utf8'));
 const characters = Object.keys(manifest).filter(k => !k.startsWith('_'));
-for (const c of (arg === '--all' ? characters : [arg])) {
-  console.log(`Converting ${c}…`);
-  convertCharacter(c, manifest);
-}
+(async () => {
+  for (const c of (arg === '--all' ? characters : [arg])) {
+    console.log(`Converting ${c}…`);
+    await convertCharacter(c, manifest);
+  }
+})();

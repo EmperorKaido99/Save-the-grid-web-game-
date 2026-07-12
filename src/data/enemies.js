@@ -11,6 +11,7 @@ export const ENEMY_TYPES = {
     color: 0xdd3333,
     scale: 1.0,
     targetsDefenses: false,
+    fenceBehavior: 'break',   // smashes blocking fences
     description: 'Basic opportunist. Heads straight for the station.',
   },
   CABLE_THIEF: {
@@ -24,6 +25,7 @@ export const ENEMY_TYPES = {
     color: 0xff8800,
     scale: 0.85,
     targetsDefenses: true,
+    fenceBehavior: 'climb',   // vaults fences without destroying them
     description: 'Fast and sneaky. Targets your solar panels and turbines first.',
   },
   VANDAL: {
@@ -37,6 +39,7 @@ export const ENEMY_TYPES = {
     color: 0x771111,
     scale: 1.3,
     targetsDefenses: false,
+    fenceBehavior: 'break',
     description: 'Slow but tough. Takes a lot of stunning to bring down.',
   },
 };

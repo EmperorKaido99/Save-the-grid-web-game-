@@ -44,6 +44,30 @@ workers, wheel zoom, R reset. The HUD shows the live animation-hook states
 (`idle/walk/run/sprint`, `grounded/airborne`, aim) and recent state-machine
 events.
 
+## Mixamo animation pipeline
+
+Runtime side is fully wired (`src/AnimationSystem.js`): each character gets
+a `CharacterAnimator` (crossfading state machine over a THREE.AnimationMixer)
+that merges converted clip GLBs from `assets/models/characters/<character>/`
+with any clips baked into the base model. Missing clips fall back gracefully
+(walk→run→embedded catch-all), so the game works at every stage of asset
+completeness. `index.json` in that folder lists which clip files exist —
+`scripts/convert-mixamo.js` maintains it; the runtime only requests listed
+files (no 404 spam).
+
+To add animations: download Mixamo FBX clips into
+`assets/mixamo-raw/<character>/` named per
+`assets/models/animation-manifest.json`, run `npm install` once, then
+`node scripts/convert-mixamo.js --all`. Commit the generated GLBs plus the
+updated `index.json`. Clip-to-state wiring is already in Player.js
+(idle/walk/run/aim_idle/aim_walk/fire/repair_loop) and EnemyManager.js
+(walk/run/break_fence/steal/heavy_attack/attack/climb/death).
+
+Fence behavior split (`fenceBehavior` in `data/enemies.js`): looters and
+vandals break blocking fences; cable thieves vault them on a fixed
+procedural arc (predictable landing — deliberately NOT clip root motion,
+see the drift warning in docs/mixamo-animation-plan.md).
+
 ## Animation hook points
 
 `PlayerState` emits: `locomotion(from, to)`, `air(from, to)`,

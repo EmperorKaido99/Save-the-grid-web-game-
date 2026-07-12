@@ -1,6 +1,10 @@
 import * as THREE from 'three';
 import { ENEMY_TYPES } from './data/enemies.js';
 import { Models } from './ModelLoader.js';
+import { CharacterAnimator, loadCharacterClips } from './AnimationSystem.js';
+
+// manifest character keys per enemy type (for converted Mixamo clips)
+const CLIP_KEYS = { LOOTER: 'looter', CABLE_THIEF: 'cable_thief', VANDAL: 'vandal' };
 
 export class EnemyManager {
   constructor(scene) {
@@ -110,14 +114,34 @@ export class EnemyManager {
       stunTimer: 0,
       alive: true,
       rewardCredited: false,
+      animator: null,
+      climb: null,          // active fence-vault state (cable thieves)
+      deathTimer: 0,        // keeps the body visible while a death clip plays
     };
     this.enemies.push(enemy);
+
+    // Wire converted Mixamo clips (plus any baked into the model itself).
+    // No-op until clip GLBs land in assets/models/characters/<type>/.
+    if (model) {
+      loadCharacterClips(CLIP_KEYS[typeId]).then(clips => {
+        const animator = new CharacterAnimator(model, clips, Models.getAnimations(modelKey));
+        if (animator.hasAnyClip && enemy.alive) enemy.animator = animator;
+      });
+    }
     return enemy;
   }
 
   update(dt, defenses, station) {
     for (const e of this.enemies) {
-      if (!e.alive) continue;
+      if (!e.alive) {
+        // Let a death clip finish before the body disappears
+        if (e.deathTimer > 0) {
+          e.deathTimer -= dt;
+          if (e.animator) e.animator.update(dt);
+          if (e.deathTimer <= 0) e.group.visible = false;
+        }
+        continue;
+      }
 
       // Stun recovery
       if (e.stunTimer > 0) {
@@ -128,7 +152,25 @@ export class EnemyManager {
       }
       e.group.visible = true;
 
-      // Check if a fence is blocking the path — attack it first
+      // Active fence vault (cable thieves) — arc over on a fixed path so
+      // the landing spot is always predictable (no root-motion drift)
+      if (e.climb) {
+        e.climb.t += dt;
+        const k = Math.min(1, e.climb.t / e.climb.dur);
+        e.group.position.lerpVectors(e.climb.from, e.climb.to, k);
+        e.group.position.y = Math.sin(Math.PI * k) * 2.4;
+        if (e.animator) {
+          e.animator.setState('climb', ['run', 'walk'], 1);
+          e.animator.update(dt);
+        }
+        if (k >= 1) {
+          e.group.position.y = 0;
+          e.climb = null;
+        }
+        continue;
+      }
+
+      // Check if a fence is blocking the path
       let blockingFence = null;
       for (const d of defenses) {
         if (!d.alive || d.type !== 'FENCE') continue;
@@ -137,6 +179,21 @@ export class EnemyManager {
           blockingFence = d;
           break;
         }
+      }
+
+      // Climbers vault the fence instead of destroying it
+      if (blockingFence && e.def.fenceBehavior === 'climb') {
+        const dir = new THREE.Vector3()
+          .subVectors(blockingFence.group.position, e.group.position);
+        dir.y = 0;
+        const distToFence = dir.length();
+        dir.normalize();
+        const from = e.group.position.clone();
+        const to = from.clone().addScaledVector(dir, distToFence + 3.6);
+        to.y = 0;
+        e.climb = { t: 0, dur: 1.1, from, to };
+        e.group.rotation.y = Math.atan2(dir.x, dir.z);
+        continue;
       }
 
       // Pick target
@@ -179,6 +236,10 @@ export class EnemyManager {
         const fleeDir = new THREE.Vector3(0, 0, -1); // back toward spawn
         e.group.position.addScaledVector(fleeDir, e.def.speed * 0.7 * dt);
         e.group.rotation.y = Math.atan2(fleeDir.x, fleeDir.z);
+        if (e.animator) {
+          e.animator.setState('run', ['walk'], 1);
+          e.animator.update(dt);
+        }
         // Despawn when far enough
         if (e.group.position.z < -(this.spawnDistance + 10)) {
           e.alive = false;
@@ -211,6 +272,27 @@ export class EnemyManager {
         }
       }
 
+      // Drive animation from the state machine (moving vs attacking)
+      if (e.animator) {
+        if (dist > 1.5) {
+          // Locomotion — playback rate scales with actual speed
+          const rate = Math.max(0.5, e.def.speed / 3.5);
+          if (e.type === 'CABLE_THIEF') e.animator.setState('run', ['walk'], rate * 0.7);
+          else e.animator.setState('walk', ['run'], rate);
+        } else if (e.target && e.target.type === 'FENCE') {
+          e.animator.setState('break_fence', ['heavy_attack', 'attack', 'steal'], 1);
+        } else if (e.target) {
+          e.animator.setState(
+            e.type === 'CABLE_THIEF' ? 'steal' : (e.type === 'VANDAL' ? 'heavy_attack' : 'attack'),
+            ['attack', 'heavy_attack', 'steal'], 1
+          );
+        } else {
+          e.animator.setState(e.type === 'VANDAL' ? 'heavy_attack' : 'attack',
+            ['attack', 'heavy_attack'], 1);
+        }
+        e.animator.update(dt);
+      }
+
       // Update health bar
       const ratio = Math.max(0, e.health / e.maxHealth);
       e.hbFill.scale.x = ratio;
@@ -229,7 +311,13 @@ export class EnemyManager {
         e.stunTimer = 0.4; // brief stun
         if (e.health <= 0) {
           e.alive = false;
-          e.group.visible = false;
+          // Play the death clip if one exists; otherwise disappear as before
+          if (e.animator && e.animator.playOneShot('death', { holdLast: true })) {
+            e.stunTimer = 0;
+            e.deathTimer = 1.6;
+          } else {
+            e.group.visible = false;
+          }
           hits.push(e);
         }
       }

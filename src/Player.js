@@ -1,6 +1,6 @@
 import * as THREE from 'three';
-import { AnimationMixer } from 'three';
 import { Models } from './ModelLoader.js';
+import { CharacterAnimator, loadCharacterClips } from './AnimationSystem.js';
 
 // Character definitions — portable stats
 const CHARACTERS = {
@@ -80,6 +80,21 @@ export class Player {
 
     this.group.position.set(0, 0, 8);
     scene.add(this.group);
+
+    // Animation state machines — converted Mixamo clips (when present in
+    // assets/models/characters/) merge with clips baked into the base GLBs
+    this._animators = { COMBAT: null, REPAIR: null };
+    const wire = (charKey, group, modelKey) => {
+      const model = group.getObjectByName('model');
+      if (!model) return;
+      loadCharacterClips(charKey === 'COMBAT' ? 'combat_worker' : 'repair_worker')
+        .then(clips => {
+          const animator = new CharacterAnimator(model, clips, Models.getAnimations(modelKey));
+          if (animator.hasAnyClip) this._animators[charKey] = animator;
+        });
+    };
+    wire('COMBAT', this._combatGroup, 'combatWorker');
+    wire('REPAIR', this._repairGroup, 'repairWorker');
   }
 
   get stats() {
@@ -101,14 +116,6 @@ export class Player {
       model.name = 'model';
       g.add(model);
       g.userData.hasModel = true;
-
-      // Play the baked animation if available (timeScale driven by speed)
-      const anims = Models.getAnimations('combatWorker');
-      if (anims.length > 0) {
-        this._combatMixer = new AnimationMixer(model);
-        this._combatAction = this._combatMixer.clipAction(anims[0]);
-        this._combatAction.play();
-      }
     } else {
       // Fallback primitive
       const def = CHARACTERS.COMBAT;
@@ -350,15 +357,32 @@ export class Player {
       if (arrow) arrow.position.y = 3.5 + Math.sin(performance.now() * 0.003) * 0.3;
     }
 
-    // --- Animation mixers (clip speed follows movement speed) ---
-    if (this._combatMixer && this.activeChar === 'COMBAT') {
-      if (this._combatAction) {
-        const target = this.moving ? Math.max(0.8, currentSpeed / stats.speed) * 1.2 : 0.55;
-        this._combatAction.timeScale = THREE.MathUtils.damp(
-          this._combatAction.timeScale, target, 8, dt
-        );
+    // --- Animation state machine (crossfades once dedicated clips exist;
+    //     falls back to the baked clip with speed-matched playback) ---
+    const animator = this._animators[this.activeChar];
+    if (animator) {
+      const moveScale = Math.max(0.8, currentSpeed / stats.speed) * 1.1;
+      if (this.activeChar === 'COMBAT') {
+        if (aiming) {
+          animator.setState(this.moving ? 'aim_walk' : 'aim_idle',
+            this.moving ? ['walk', 'run'] : ['idle'], this.moving ? moveScale * 0.8 : 0.6);
+        } else if (this.sprinting && this.moving) {
+          animator.setState('run', ['walk'], 1.3);
+        } else if (this.moving) {
+          animator.setState('walk', ['run'], moveScale);
+        } else {
+          animator.setState('idle', [], 0.55);
+        }
+      } else {
+        if (this.isRepairing) {
+          animator.setState('repair_loop', ['idle'], 1);
+        } else if (this.moving) {
+          animator.setState('walk', ['run'], moveScale);
+        } else {
+          animator.setState('idle', [], 0.55);
+        }
       }
-      this._combatMixer.update(dt);
+      animator.update(dt);
     }
 
     // --- Cooldown ---
@@ -381,6 +405,9 @@ export class Player {
     const activeGroup = this.activeChar === 'COMBAT' ? this._combatGroup : this._repairGroup;
     const flash = activeGroup.getObjectByName('flash');
     if (flash) flash.visible = true;
+    // Punchy fire clip if one has been converted (no-op until it exists)
+    const animator = this._animators[this.activeChar];
+    if (animator) animator.playOneShot('fire', { timeScale: 1.6 });
     return true;
   }
 

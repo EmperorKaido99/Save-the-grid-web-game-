@@ -398,7 +398,8 @@ export class Game {
     const kills = this.enemies.collectUnrewardedKills();
     for (const e of kills) {
       this.economy.earn(e.def.reward);
-      e.group.visible = false;
+      // Bodies playing a death clip stay visible until it finishes
+      if (!e.deathTimer) e.group.visible = false;
     }
 
     // Check station death
