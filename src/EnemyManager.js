@@ -123,9 +123,36 @@ export class EnemyManager {
       const clips = Models.getClips(modelKey);
       const embedded = Models.getAnimations(modelKey);
       const animator = new CharacterAnimator(model, clips, embedded);
-      if (animator.hasAnyClip) enemy.animator = animator;
+      if (animator.hasAnyClip) {
+        enemy.animator = animator;
+        enemy.groundTimer = 0.25; // calibrate feet once the clip is posing
+      }
     }
     return enemy;
+  }
+
+  // One-time ground calibration: some walk clips carry the hips at a
+  // different height than the model's bind pose, leaving the character
+  // hovering. Once the animation is posing the skeleton, measure the
+  // lowest foot bone and drop the model so the feet touch the ground.
+  _groundFeet(e) {
+    const model = e.group.getObjectByName('model');
+    if (!model) return;
+    let minY = Infinity;
+    e.group.updateWorldMatrix(true, true);
+    const v = new THREE.Vector3();
+    e.group.traverse(o => {
+      if (o.isBone && /toe|foot|ankle/i.test(o.name)) {
+        o.getWorldPosition(v);
+        minY = Math.min(minY, v.y - e.group.position.y);
+      }
+    });
+    if (minY === Infinity) return;
+    // leave ~4cm for the sole; only correct meaningful offsets
+    const correction = minY - 0.04;
+    if (Math.abs(correction) > 0.05 && Math.abs(correction) < 2) {
+      model.position.y -= correction;
+    }
   }
 
   update(dt, defenses, station) {
@@ -189,7 +216,7 @@ export class EnemyManager {
         const to = from.clone().addScaledVector(dir, distToFence + 3.6);
         to.y = 0;
         e.climb = { t: 0, dur: 1.1, from, to };
-        e.group.rotation.y = Math.atan2(dir.x, dir.z);
+        e.group.rotation.y = Math.atan2(-dir.x, -dir.z);
         continue;
       }
 
@@ -232,7 +259,7 @@ export class EnemyManager {
       if (e.carryingLoot) {
         const fleeDir = new THREE.Vector3(0, 0, -1); // back toward spawn
         e.group.position.addScaledVector(fleeDir, e.def.speed * 0.7 * dt);
-        e.group.rotation.y = Math.atan2(fleeDir.x, fleeDir.z);
+        e.group.rotation.y = Math.atan2(-fleeDir.x, -fleeDir.z);
         if (e.animator) {
           e.animator.setState('run', ['walk'], 1);
           e.animator.update(dt);
@@ -249,7 +276,7 @@ export class EnemyManager {
       if (dist > 1.5) {
         dir.normalize();
         e.group.position.addScaledVector(dir, e.def.speed * dt);
-        e.group.rotation.y = Math.atan2(dir.x, dir.z);
+        e.group.rotation.y = Math.atan2(-dir.x, -dir.z);
       } else {
         // In range — attack
         e.attackTimer -= dt;
@@ -288,6 +315,15 @@ export class EnemyManager {
             ['attack', 'heavy_attack'], 1);
         }
         e.animator.update(dt);
+      }
+
+      // One-time feet-on-ground calibration shortly after spawn
+      if (e.groundTimer !== undefined && e.animator) {
+        e.groundTimer -= dt;
+        if (e.groundTimer <= 0) {
+          this._groundFeet(e);
+          e.groundTimer = undefined;
+        }
       }
 
       // Update health bar

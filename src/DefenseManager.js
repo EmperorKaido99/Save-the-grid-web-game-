@@ -126,6 +126,9 @@ export class DefenseManager {
               group.userData.turretPivot = child;
             }
           });
+          // Whole-model yaw pivot — rotated toward the current target when
+          // firing (the normalized model faces -Z at rest)
+          group.userData.aimModel = model;
         }
 
         group.add(model);
@@ -484,6 +487,13 @@ export class DefenseManager {
   }
 
   _fireProjectile(defense, target, stats) {
+    // Swivel the turret model toward its target (model faces -Z at rest)
+    if (defense.type === 'TURRET' && defense.group.userData.aimModel) {
+      const dx = target.group.position.x - defense.group.position.x;
+      const dz = target.group.position.z - defense.group.position.z;
+      defense.group.userData.aimModel.rotation.y = Math.atan2(-dx, -dz);
+    }
+
     let startY;
     if (defense.type === 'WIND_TURBINE') startY = 7;
     else if (defense.type === 'TURRET') startY = 1.5 + defense.level * 0.15;

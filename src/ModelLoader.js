@@ -51,7 +51,9 @@ const FIT = {
   vandal:       { height: 2.6, rotateY: Math.PI },
   solarPanel:   { height: 2.2 },
   windTurbine:  { height: 9.0 },
-  turret:       { height: 2.6 },
+  // Turret GLB's barrel points +Z; flip so it faces the enemy spawn side
+  // (-Z) by default. DefenseManager also aims it at targets when firing.
+  turret:       { height: 2.6, rotateY: Math.PI },
   fence:        { height: 2.5 },
   powerStation: { height: 20 },
 };
