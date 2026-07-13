@@ -43,9 +43,9 @@ export class InputManager {
       this.mouse.ndcX = (e.clientX / window.innerWidth) * 2 - 1;
       this.mouse.ndcY = -(e.clientY / window.innerHeight) * 2 + 1;
 
-      // Unlocked look: drive the camera from cursor deltas so the mouse
-      // works even before/without pointer lock
-      if (this.wantsLock && this._lastClient) {
+      // Unlocked cursor deltas: drive the action camera before/without
+      // pointer lock, and right-drag panning in god mode
+      if (this._lastClient) {
         const dx = e.clientX - this._lastClient.x;
         const dy = e.clientY - this._lastClient.y;
         if (Math.abs(dx) < 150 && Math.abs(dy) < 150) {
@@ -81,10 +81,9 @@ export class InputManager {
       if (e.button === 2) this.mouse.rightDown = false;
     });
     canvas.addEventListener('wheel', (e) => {
-      if (this.wantsLock) {
-        this.wheelDelta += e.deltaY;
-        e.preventDefault();
-      }
+      // Action mode: camera zoom. God mode: isometric map zoom.
+      this.wheelDelta += e.deltaY;
+      e.preventDefault();
     }, { passive: false });
 
     document.addEventListener('pointerlockchange', () => {

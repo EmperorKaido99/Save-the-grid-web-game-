@@ -225,6 +225,24 @@ export class Game {
   }
 
   _updateGodMode(dt) {
+    // --- Isometric camera controls: WASD/arrows or right-drag pan,
+    //     Q/E rotate, wheel zoom — see the whole map ---
+    const panSpeed = 1.4 * this.cameras.godZoom * dt;
+    let px = 0, pz = 0;
+    if (this.input.isKeyDown('KeyW') || this.input.isKeyDown('ArrowUp')) pz += panSpeed;
+    if (this.input.isKeyDown('KeyS') || this.input.isKeyDown('ArrowDown')) pz -= panSpeed;
+    if (this.input.isKeyDown('KeyA') || this.input.isKeyDown('ArrowLeft')) px -= panSpeed;
+    if (this.input.isKeyDown('KeyD') || this.input.isKeyDown('ArrowRight')) px += panSpeed;
+    if (this.input.mouse.rightDown) {
+      const drag = this.cameras.godZoom / 380;
+      px -= this.input.look.dx * drag;
+      pz += this.input.look.dy * drag;
+    }
+    if (px || pz) this.cameras.godPan(px, pz);
+    if (this.input.isKeyDown('KeyQ')) this.cameras.godRotate(1.6 * dt);
+    if (this.input.isKeyDown('KeyE')) this.cameras.godRotate(-1.6 * dt);
+    if (this.input.wheelDelta) this.cameras.godZoomBy(this.input.wheelDelta * 0.03);
+
     this.ui.updateDefenseButtons(this.economy.balance);
     if (this.selectedUpgradeTarget) {
       this.ui.updateUpgradeAffordability(this.economy.balance, this.selectedUpgradeTarget);

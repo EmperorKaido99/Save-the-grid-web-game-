@@ -14,14 +14,22 @@ const AIM_DISTANCE = 4.6;
 const AIM_SHOULDER = 1.15; // over-the-right-shoulder offset
 const AIM_HEIGHT = 0.5;
 
+// God-mode isometric rig
+const GOD_PITCH = Math.atan(1 / Math.sqrt(2)); // classic isometric elevation (~35.26°)
+const GOD_DIST = 140;                          // camera distance along the iso axis
+const GOD_ZOOM_MIN = 12;                       // ortho half-height (zoomed in)
+const GOD_ZOOM_MAX = 62;                       // fits the whole map + spawn line
+
 export class CameraController {
   constructor(canvas) {
     this.aspect = window.innerWidth / window.innerHeight;
 
-    // God-mode camera — top-down perspective
-    this.godCam = new THREE.PerspectiveCamera(50, this.aspect, 0.1, 200);
-    this.godCam.position.set(0, 60, 35);
-    this.godCam.lookAt(0, 0, 0);
+    // God-mode camera — isometric orthographic with pan / rotate / zoom
+    this.godTarget = new THREE.Vector3(0, 0, -5); // pan center on the ground
+    this.godYaw = 0;                              // orbit angle around the map
+    this.godZoom = 34;                            // ortho half-height
+    this.godCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 400);
+    this._refreshGodCam();
 
     // Character-mode camera — third-person spring-arm orbit (mouse look)
     this.charCam = new THREE.PerspectiveCamera(FOV_NORMAL, this.aspect, 0.1, 200);
@@ -43,14 +51,55 @@ export class CameraController {
 
   _onResize() {
     this.aspect = window.innerWidth / window.innerHeight;
-    this.godCam.aspect = this.aspect;
-    this.godCam.updateProjectionMatrix();
+    this._refreshGodCam();
     this.charCam.aspect = this.aspect;
     this.charCam.updateProjectionMatrix();
   }
 
   setGodMode() {
     this.active = this.godCam;
+  }
+
+  // --- God-mode isometric camera controls ---
+
+  // Reposition the ortho camera on its isometric axis around godTarget
+  _refreshGodCam() {
+    const c = this.godCam;
+    const halfH = this.godZoom;
+    const halfW = halfH * this.aspect;
+    c.left = -halfW; c.right = halfW; c.top = halfH; c.bottom = -halfH;
+    const cosP = Math.cos(GOD_PITCH);
+    const dir = new THREE.Vector3(
+      Math.sin(this.godYaw) * cosP,
+      Math.sin(GOD_PITCH),
+      Math.cos(this.godYaw) * cosP
+    );
+    c.position.copy(this.godTarget).addScaledVector(dir, GOD_DIST);
+    c.lookAt(this.godTarget);
+    c.updateProjectionMatrix();
+  }
+
+  // Pan on the ground plane: dx = screen-right, dz = screen-up
+  godPan(dx, dz) {
+    const sin = Math.sin(this.godYaw), cos = Math.cos(this.godYaw);
+    this.godTarget.x = THREE.MathUtils.clamp(
+      this.godTarget.x + cos * dx - sin * dz, -55, 55);
+    this.godTarget.z = THREE.MathUtils.clamp(
+      this.godTarget.z - sin * dx - cos * dz, -60, 55);
+    this._refreshGodCam();
+  }
+
+  // Orbit the whole view around the map (Q/E)
+  godRotate(delta) {
+    this.godYaw += delta;
+    this._refreshGodCam();
+  }
+
+  // Wheel zoom: shrink/grow the ortho frustum
+  godZoomBy(delta) {
+    this.godZoom = THREE.MathUtils.clamp(
+      this.godZoom + delta, GOD_ZOOM_MIN, GOD_ZOOM_MAX);
+    this._refreshGodCam();
   }
 
   setCharacterMode() {
