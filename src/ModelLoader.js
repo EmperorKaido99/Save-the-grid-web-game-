@@ -1,16 +1,22 @@
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 import * as THREE from 'three';
 
-// Models — 'fmt' defaults to 'glb'. Characters with new FBX models use 'fbx'.
+// Models — everything runtime-loaded is GLB. Raw FBX downloads (Mixamo /
+// character-creator exports) are converted offline by fbx2gltf — see
+// assets/README.md — because three's FBXLoader drops skinning on some
+// exports (the looter came through with zero bones) and can't resolve
+// this repo's texture layout.
+//
+// The looter base is its own walk clip GLB: the Mixamo clips were exported
+// "with skin", so that file carries the full skinned mesh + skeleton,
+// while Looter.fbx itself is an unrigged static scan.
 const MODELS = {
   combatWorker:   { path: '3d ref model/player/Combat worker/combat worker.glb' },
   repairWorker:   { path: 'assets/characters/repair_worker/high_visibility_orange_worker.glb' },
-  looter:         { path: 'assets/characters/looter/Looter.fbx', fmt: 'fbx' },
+  looter:         { path: 'assets/models/characters/looter/walk.glb' },
   // cableThief FBX is 48MB — too large for web. Falls back to primitive.
-  // cableThief: { path: '...', fmt: 'fbx' },
-  vandal:         { path: 'assets/characters/vandal/VANDAL.fbx', fmt: 'fbx' },
+  vandal:         { path: 'assets/models/characters/vandal/vandal.glb' },
   solarPanel:     { path: '3d ref model/defenses/solar-panel/solar_panel.glb' },
   windTurbine:    { path: '3d ref model/defenses/wind-turbine/wind_turbine_demo.glb' },
   turret:         { path: '3d ref model/defenses/turret/turret.glb' },
@@ -18,18 +24,19 @@ const MODELS = {
   powerStation:   { path: '3d ref model/environment/props/coal_power_station.glb' },
 };
 
-// Animation clips loaded from separate FBX files (Mixamo exports).
-// Each clip's skeleton must match the parent model's rig.
+// Animation clips loaded from separate converted GLBs. Each clip's
+// skeleton matches the parent model's rig (same source rig), so tracks
+// bind by bone name.
 const ANIMATIONS = {
   vandal: [
-    { name: 'walk',   path: 'assets/characters/vandal/Walking.fbx' },
-    { name: 'attack', path: 'assets/characters/vandal/heavy attack.fbx' },
-    { name: 'death',  path: 'assets/characters/vandal/Falling Back Death.fbx' },
+    { name: 'walk',         path: 'assets/models/characters/vandal/walk.glb' },
+    { name: 'heavy_attack', path: 'assets/models/characters/vandal/heavy_attack.glb' },
+    { name: 'death',        path: 'assets/models/characters/vandal/death.glb' },
   ],
   looter: [
-    { name: 'walk',   path: 'assets/animations/looter/Walking.fbx' },
-    { name: 'attack', path: 'assets/animations/looter/Standing Melee Attack Downward.fbx' },
-    { name: 'death',  path: 'assets/animations/looter/Falling Back Death.fbx' },
+    { name: 'walk',   path: 'assets/models/characters/looter/walk.glb' },
+    { name: 'attack', path: 'assets/models/characters/looter/attack.glb' },
+    { name: 'death',  path: 'assets/models/characters/looter/death.glb' },
   ],
 };
 
@@ -52,7 +59,6 @@ const FIT = {
 class ModelLoaderSingleton {
   constructor() {
     this.gltfLoader = new GLTFLoader();
-    this.fbxLoader = new FBXLoader();
     this.cache = {};       // key -> { scene, animations[], norm }
   }
 
@@ -81,36 +87,34 @@ class ModelLoaderSingleton {
   }
 
   async _loadModel(key, cfg) {
-    const isFbx = cfg.fmt === 'fbx';
-    if (isFbx) {
-      const group = await this.fbxLoader.loadAsync(cfg.path);
-      const scene = group;
-      const animations = group.animations || [];
-      this.cache[key] = {
-        scene,
-        animations,
-        norm: this._computeNorm(key, scene),
-      };
-    } else {
-      const gltf = await this.gltfLoader.loadAsync(cfg.path);
-      this.cache[key] = {
-        scene: gltf.scene,
-        animations: gltf.animations || [],
-        norm: this._computeNorm(key, gltf.scene),
-      };
-    }
+    const gltf = await this.gltfLoader.loadAsync(cfg.path);
+    this.cache[key] = {
+      scene: gltf.scene,
+      // Embedded clips (e.g. the combat worker's single baked clip) feed
+      // the CharacterAnimator catch-all fallback; named clips from
+      // ANIMATIONS are appended by _loadAnimations.
+      animations: gltf.animations || [],
+      norm: this._computeNorm(key, gltf.scene),
+    };
   }
 
   async _loadAnimations(key, clips) {
     const entry = this.cache[key];
     if (!entry) return; // model didn't load, skip anims
 
+    // Bone names present in the model — used to drop tracks that target
+    // helper nodes the model doesn't have (avoids PropertyBinding spam)
+    const nodeNames = new Set();
+    entry.scene.traverse(o => { if (o.name) nodeNames.add(o.name); });
+
     const results = await Promise.allSettled(
       clips.map(async (clip) => {
-        const group = await this.fbxLoader.loadAsync(clip.path);
-        if (group.animations && group.animations.length > 0) {
-          const anim = group.animations[0];
+        const gltf = await this.gltfLoader.loadAsync(clip.path);
+        if (gltf.animations && gltf.animations.length > 0) {
+          const anim = gltf.animations[0];
           anim.name = clip.name; // rename to our hook name
+          anim.tracks = anim.tracks.filter(t =>
+            nodeNames.has(t.name.split('.')[0]));
           entry.animations.push(anim);
         }
       })
@@ -124,7 +128,33 @@ class ModelLoaderSingleton {
 
   _computeNorm(key, scene) {
     const fit = FIT[key] || { height: 2 };
-    const box = new THREE.Box3().setFromObject(scene);
+    scene.updateMatrixWorld(true);
+
+    // Skinned meshes render wherever their BONES are — glTF ignores the
+    // mesh node's own transform for skinned geometry, so Box3.setFromObject
+    // (bind-pose geometry x node transforms) can be off by 100x on Mixamo /
+    // character-creator exports. Measure the skeleton instead.
+    let box = null;
+    let hasSkinned = false;
+    scene.traverse(o => { if (o.isSkinnedMesh) hasSkinned = true; });
+    if (hasSkinned) {
+      const min = new THREE.Vector3(Infinity, Infinity, Infinity);
+      const max = new THREE.Vector3(-Infinity, -Infinity, -Infinity);
+      const v = new THREE.Vector3();
+      let bones = 0;
+      scene.traverse(o => {
+        if (o.isBone) { o.getWorldPosition(v); min.min(v); max.max(v); bones++; }
+      });
+      if (bones > 0) {
+        // bones stop at the last joint — pad for the crown/feet/hands mesh
+        const pad = (max.y - min.y) * 0.06;
+        min.y -= pad * 0.5;
+        max.y += pad;
+        box = new THREE.Box3(min, max);
+      }
+    }
+    if (!box) box = new THREE.Box3().setFromObject(scene);
+
     const size = new THREE.Vector3();
     box.getSize(size);
     const scale = size.y > 0 ? fit.height / size.y : 1;

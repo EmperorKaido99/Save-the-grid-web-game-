@@ -749,3 +749,289 @@ canvas {
 
 /* Prevent touch scrolling/zooming from fighting the game canvas */
 #game-container canvas { touch-action: none; }
+
+/* ═══════════════════════════════════════════════════════════════════
+   African art-deco HUD skin — recreated from the two HUD reference
+   images (dark panels, gold chevron-striped frames, green plates,
+   red/green/blue mosaic accents, cream text). Pure CSS, no images.
+   Overrides the base styles above.
+   ═══════════════════════════════════════════════════════════════════ */
+:root {
+  --deco-ink: #171310;          /* near-black outline */
+  --deco-panel: #16191e;        /* panel body */
+  --deco-slot: #1d2127;         /* inset slots */
+  --deco-gold: #dfa93e;
+  --deco-gold-hi: #f0c469;
+  --deco-gold-dim: #a97e26;
+  --deco-cream: #f3e9d2;
+  --deco-green: #2e6b4f;
+  --deco-green-hi: #3f9268;
+  --deco-red: #bf4534;
+  --deco-blue: #2f6fae;
+  /* gold band with black diagonal hatching (the frame's signature) */
+  --deco-stripes: repeating-linear-gradient(
+    -45deg,
+    var(--deco-gold) 0 7px,
+    var(--deco-ink) 7px 11px
+  );
+  /* multicolor mosaic rail (panel sides in the reference) */
+  --deco-mosaic: repeating-linear-gradient(
+    180deg,
+    var(--deco-gold) 0 12px,  var(--deco-ink) 12px 14px,
+    var(--deco-green) 14px 26px, var(--deco-ink) 26px 28px,
+    var(--deco-red) 28px 38px,  var(--deco-ink) 38px 40px,
+    var(--deco-cream) 40px 46px, var(--deco-ink) 46px 48px,
+    var(--deco-blue) 48px 58px, var(--deco-ink) 58px 60px
+  );
+}
+
+/* ── shared frame: dark body, ink outline, gold ring ── */
+.hud-row,
+.god-panel,
+.upgrade-content,
+.fact-content,
+.end-content {
+  background: var(--deco-panel);
+  border: 2px solid var(--deco-ink);
+  border-radius: 4px;
+  box-shadow:
+    0 0 0 3px var(--deco-gold),
+    0 0 0 5px var(--deco-ink),
+    0 6px 18px rgba(0, 0, 0, 0.55);
+  color: var(--deco-cream);
+}
+
+/* ── top resource bar ── */
+.hud { top: 10px; }
+.hud-row {
+  width: fit-content;
+  margin: 0 auto;
+  padding: 10px 30px 16px;
+  position: relative;
+  gap: 12px;
+}
+.hud-row::after {           /* hatched gold band along the bottom edge */
+  content: '';
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: 3px;
+  height: 7px;
+  background: var(--deco-stripes);
+  border: 1px solid var(--deco-ink);
+  pointer-events: none;
+}
+.hud-row::before {          /* gold corner spark, as in the reference */
+  content: '⚡';
+  position: absolute;
+  left: 8px;
+  top: 6px;
+  font-size: 11px;
+  color: var(--deco-gold);
+  text-shadow: 0 0 4px rgba(224, 169, 62, 0.6);
+}
+.hud-item {
+  background: var(--deco-slot);
+  border: 1px solid var(--deco-ink);
+  border-radius: 8px;
+  box-shadow: inset 0 1px 0 rgba(243, 233, 210, 0.08),
+              inset 0 -2px 4px rgba(0, 0, 0, 0.45);
+  color: var(--deco-cream);
+}
+.hud-item.stage-safe { color: var(--deco-green-hi); border-color: var(--deco-ink); }
+.hud-item.stage-active { color: #ff6a55; }
+
+/* ── god panel (build menu — the vertical framed panel) ── */
+.god-panel {
+  padding: 18px 26px 20px;
+  border-radius: 4px;
+  backdrop-filter: none;
+}
+.god-panel::before,
+.god-panel::after {          /* mosaic side rails */
+  content: '';
+  position: absolute;
+  top: 8px;
+  bottom: 8px;
+  width: 7px;
+  background: var(--deco-mosaic);
+  border: 1px solid var(--deco-ink);
+  pointer-events: none;
+}
+.god-panel::before { left: 6px; }
+.god-panel::after { right: 6px; }
+.god-panel h2 {
+  background: var(--deco-green);
+  border: 1px solid var(--deco-ink);
+  border-radius: 6px;
+  box-shadow: 0 0 0 1px var(--deco-gold-dim);
+  color: var(--deco-cream);
+  text-align: center;
+  padding: 7px 6px;
+  margin-bottom: 8px;
+  font-size: 14px;
+}
+.god-panel .hint { color: #b6ac93; }
+.section-label {
+  color: var(--deco-gold);
+  border-bottom: 1px solid var(--deco-gold-dim);
+}
+.defense-btn {
+  background: var(--deco-slot);
+  border: 1px solid var(--deco-ink);
+  border-radius: 8px;
+  box-shadow: inset 0 1px 0 rgba(243, 233, 210, 0.06),
+              inset 0 -2px 4px rgba(0, 0, 0, 0.4);
+  color: #cfc6ae;
+}
+.defense-btn:hover {
+  border-color: var(--deco-gold-dim);
+  background: #242931;
+}
+.defense-btn.selected {
+  border-color: var(--deco-gold);
+  background: #253328;
+  box-shadow: 0 0 0 1px var(--deco-gold),
+              inset 0 1px 0 rgba(243, 233, 210, 0.06);
+  color: var(--deco-cream);
+}
+.defense-btn strong { color: var(--deco-cream); }
+.defense-btn .cost { color: var(--deco-gold); }
+.defense-btn small { color: #9b937e; }
+
+/* ── buttons ── */
+.big-btn {
+  background: linear-gradient(180deg, var(--deco-green-hi), var(--deco-green));
+  border: 2px solid var(--deco-ink);
+  border-radius: 8px;
+  box-shadow: 0 0 0 1px var(--deco-gold-dim), 0 3px 8px rgba(0, 0, 0, 0.4);
+  color: var(--deco-cream);
+}
+.big-btn:hover {
+  box-shadow: 0 0 0 1px var(--deco-gold), 0 0 16px rgba(63, 146, 104, 0.45);
+}
+.upgrade-btn {
+  background: linear-gradient(180deg, var(--deco-gold), var(--deco-gold-dim));
+  border: 2px solid var(--deco-ink);
+  border-radius: 8px;
+  color: #221a08;
+}
+.small-btn {
+  background: var(--deco-slot);
+  border: 1px solid var(--deco-gold-dim);
+  border-radius: 6px;
+  color: var(--deco-gold);
+}
+.small-btn:hover { background: #242931; }
+
+/* ── upgrade panel / fun-fact popup ── */
+.upgrade-content { backdrop-filter: none; }
+.upgrade-content h3 { color: var(--deco-gold); }
+.fact-content { backdrop-filter: none; }
+.fact-content p { color: var(--deco-cream); }
+
+/* ── station health bar (small framed bar in the reference) ── */
+.station-bar {
+  width: 340px;
+  padding: 8px 14px 12px;
+  background: var(--deco-panel);
+  border: 2px solid var(--deco-ink);
+  border-radius: 4px;
+  box-shadow: 0 0 0 3px var(--deco-gold), 0 0 0 5px var(--deco-ink),
+              0 6px 18px rgba(0, 0, 0, 0.55);
+}
+.station-bar::after {
+  content: '';
+  position: absolute;
+  left: 6px;
+  right: 6px;
+  bottom: 2px;
+  height: 6px;
+  background: var(--deco-stripes);
+  border: 1px solid var(--deco-ink);
+  pointer-events: none;
+}
+.station-bar::before {
+  content: '⚡';
+  position: absolute;
+  left: 7px;
+  top: 5px;
+  font-size: 10px;
+  color: var(--deco-gold);
+}
+.station-bar-label { color: var(--deco-gold); }
+.station-bar-track {
+  background: var(--deco-slot);
+  border: 1px solid var(--deco-ink);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+.station-bar-text { color: var(--deco-cream); }
+
+/* ── ability HUD (stun cooldown / repair ring) ── */
+.cooldown-bar {
+  padding: 8px 12px;
+  background: var(--deco-panel);
+  border: 2px solid var(--deco-ink);
+  border-radius: 4px;
+  box-shadow: 0 0 0 2px var(--deco-gold), 0 0 0 4px var(--deco-ink);
+}
+.cooldown-track { background: var(--deco-slot); border-color: var(--deco-ink); }
+.cooldown-label { color: var(--deco-gold); }
+.repair-ring {
+  padding: 8px 10px;
+  background: var(--deco-panel);
+  border: 2px solid var(--deco-ink);
+  border-radius: 4px;
+  box-shadow: 0 0 0 2px var(--deco-gold), 0 0 0 4px var(--deco-ink);
+}
+.repair-ring-icon { top: 20px; }
+.repair-ring-label { color: var(--deco-gold); }
+
+/* ── end screen (the BLACKOUT! modal in the reference) ── */
+.end-content {
+  padding: 0 0 28px;
+  overflow: hidden;
+  min-width: 420px;
+}
+.end-content h1 {
+  background: var(--deco-green);
+  border-bottom: 2px solid var(--deco-ink);
+  box-shadow: inset 0 0 0 1px var(--deco-gold-dim);
+  color: var(--deco-cream);
+  padding: 18px 40px 14px;
+  margin-bottom: 0;
+  position: relative;
+}
+.end-content h1::after {     /* hatched gold band under the title plate */
+  content: '';
+  display: block;
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -12px;
+  height: 8px;
+  background: var(--deco-stripes);
+  border-top: 1px solid var(--deco-ink);
+  border-bottom: 1px solid var(--deco-ink);
+}
+.end-content p {
+  color: #cfc6ae;
+  margin: 26px 40px 8px;
+}
+.end-content .stats {
+  margin: 16px 40px;
+  background: var(--deco-slot);
+  border: 1px solid var(--deco-ink);
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.45);
+}
+.end-content .stats p { color: var(--deco-cream); margin: 6px 0; }
+.end-content .big-btn {
+  width: calc(100% - 80px);
+  margin: 4px auto 0;
+}
+
+/* ── announcements ── */
+.wave-announce h1 {
+  color: var(--deco-gold);
+  text-shadow: 0 2px 0 var(--deco-ink), 0 0 30px rgba(224, 169, 62, 0.45);
+}

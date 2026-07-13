@@ -1,7 +1,17 @@
 {
   "combat_worker": [],
   "repair_worker": [],
-  "looter": [],
+  "looter": [
+    "attack.glb",
+    "death.glb",
+    "looter.glb",
+    "walk.glb"
+  ],
   "cable_thief": [],
-  "vandal": []
+  "vandal": [
+    "death.glb",
+    "heavy_attack.glb",
+    "vandal.glb",
+    "walk.glb"
+  ]
 }
