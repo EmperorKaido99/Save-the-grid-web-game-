@@ -17,7 +17,8 @@
       "idle":        { "raw_filename": "idle.fbx",        "output_filename": "idle.glb",        "hook": "locomotion=idle" },
       "walk":        { "raw_filename": "walk.fbx",        "output_filename": "walk.glb",        "hook": "locomotion=walk" },
       "run":         { "raw_filename": "run.fbx",         "output_filename": "run.glb",         "hook": "locomotion=run/sprint" },
-      "repair_loop": { "raw_filename": "repair_loop.fbx", "output_filename": "repair_loop.glb", "hook": "isRepairing (kneel/crouch loop)" }
+      "repair_loop": { "raw_filename": "repair_loop.fbx", "output_filename": "repair_loop.glb", "hook": "isRepairing (kneel/crouch loop)" },
+      "stand_up":    { "raw_filename": "stand_up.fbx",    "output_filename": "stand_up.glb",    "hook": "standing after kneeling (one-shot transition)" }
     }
   },
   "looter": {

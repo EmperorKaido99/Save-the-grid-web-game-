@@ -1,14 +1,38 @@
 {
-  "combat_worker": [],
-  "repair_worker": [],
+  "combat_worker": [
+    "aim_idle.glb",
+    "aim_walk.glb",
+    "base.glb",
+    "fire.glb",
+    "idle.glb",
+    "run.glb"
+  ],
+  "repair_worker": [
+    "base.glb",
+    "high_visibility_orange_worker.glb",
+    "idle.glb",
+    "repair_loop.glb",
+    "run.glb",
+    "stand_up.glb",
+    "walk.glb"
+  ],
   "looter": [
     "attack.glb",
+    "base.glb",
+    "break_fence.glb",
     "death.glb",
     "looter.glb",
     "walk.glb"
   ],
-  "cable_thief": [],
+  "cable_thief": [
+    "base.glb",
+    "climb.glb",
+    "death.glb",
+    "run.glb",
+    "steal.glb"
+  ],
   "vandal": [
+    "base.glb",
     "death.glb",
     "heavy_attack.glb",
     "vandal.glb",

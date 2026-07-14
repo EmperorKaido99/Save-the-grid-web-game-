@@ -1,2 +1,13 @@
 node_modules/
 .DS_Store
+.claude/
+.vercel/
+
+# Raw Mixamo source files — only converted GLBs are needed at runtime
+assets/mixamo-raw/
+
+# Large source formats not needed at runtime
+*.fbx
+*.FBX
+*.obj
+*.OBJ

@@ -58,6 +58,7 @@ export class Player {
     // Repair target (defense or station being repaired)
     this.repairTarget = null;
     this.isRepairing = false;
+    this._wasRepairing = false;
 
     // Build both character meshes
     this._combatGroup = this._buildCombatWorker();
@@ -378,7 +379,11 @@ export class Player {
         }
       } else {
         if (this.isRepairing) {
+          this._wasRepairing = true;
           animator.setState('repair_loop', ['idle'], 1);
+        } else if (this._wasRepairing) {
+          this._wasRepairing = false;
+          animator.playOneShot('stand_up', { timeScale: 1.2 });
         } else if (this.moving) {
           animator.setState('walk', ['run'], moveScale);
         } else {
@@ -489,6 +494,7 @@ export class Player {
     this._combatGroup.visible = true;
     this._repairGroup.visible = false;
     this.isRepairing = false;
+    this._wasRepairing = false;
     this.repairTarget = null;
   }
 }

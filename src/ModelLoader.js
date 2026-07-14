@@ -2,21 +2,13 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 import * as THREE from 'three';
 
-// Models — everything runtime-loaded is GLB. Raw FBX downloads (Mixamo /
-// character-creator exports) are converted offline by fbx2gltf — see
-// assets/README.md — because three's FBXLoader drops skinning on some
-// exports (the looter came through with zero bones) and can't resolve
-// this repo's texture layout.
-//
-// The looter base is its own walk clip GLB: the Mixamo clips were exported
-// "with skin", so that file carries the full skinned mesh + skeleton,
-// while Looter.fbx itself is an unrigged static scan.
+// Models — all characters now use converted GLBs from the Mixamo pipeline.
 const MODELS = {
-  combatWorker:   { path: '3d ref model/player/Combat worker/combat worker.glb' },
-  repairWorker:   { path: 'assets/characters/repair_worker/high_visibility_orange_worker.glb' },
-  looter:         { path: 'assets/models/characters/looter/walk.glb' },
-  // cableThief FBX is 48MB — too large for web. Falls back to primitive.
-  vandal:         { path: 'assets/models/characters/vandal/vandal.glb' },
+  combatWorker:   { path: 'assets/models/characters/combat_worker/base.glb' },
+  repairWorker:   { path: 'assets/models/characters/repair_worker/base.glb' },
+  looter:         { path: 'assets/models/characters/looter/base.glb' },
+  cableThief:     { path: 'assets/models/characters/cable_thief/base.glb' },
+  vandal:         { path: 'assets/models/characters/vandal/base.glb' },
   solarPanel:     { path: '3d ref model/defenses/solar-panel/solar_panel.glb' },
   windTurbine:    { path: '3d ref model/defenses/wind-turbine/wind_turbine_demo.glb' },
   turret:         { path: '3d ref model/defenses/turret/turret.glb' },
@@ -24,19 +16,41 @@ const MODELS = {
   powerStation:   { path: '3d ref model/environment/props/coal_power_station.glb' },
 };
 
-// Animation clips loaded from separate converted GLBs. Each clip's
-// skeleton matches the parent model's rig (same source rig), so tracks
-// bind by bone name.
+// Animation clips loaded from converted GLBs (Mixamo pipeline output).
+// Each clip's skeleton must match the parent model's rig.
+const CLIP_DIR = 'assets/models/characters';
 const ANIMATIONS = {
-  vandal: [
-    { name: 'walk',         path: 'assets/models/characters/vandal/walk.glb' },
-    { name: 'heavy_attack', path: 'assets/models/characters/vandal/heavy_attack.glb' },
-    { name: 'death',        path: 'assets/models/characters/vandal/death.glb' },
+  combatWorker: [
+    { name: 'idle',     path: `${CLIP_DIR}/combat_worker/idle.glb` },
+    { name: 'run',      path: `${CLIP_DIR}/combat_worker/run.glb` },
+    { name: 'aim_idle', path: `${CLIP_DIR}/combat_worker/aim_idle.glb` },
+    { name: 'aim_walk', path: `${CLIP_DIR}/combat_worker/aim_walk.glb` },
+    { name: 'fire',     path: `${CLIP_DIR}/combat_worker/fire.glb` },
   ],
   looter: [
-    { name: 'walk',   path: 'assets/models/characters/looter/walk.glb' },
-    { name: 'attack', path: 'assets/models/characters/looter/attack.glb' },
-    { name: 'death',  path: 'assets/models/characters/looter/death.glb' },
+    { name: 'walk',        path: `${CLIP_DIR}/looter/walk.glb` },
+    { name: 'break_fence', path: `${CLIP_DIR}/looter/break_fence.glb` },
+    { name: 'attack',      path: `${CLIP_DIR}/looter/break_fence.glb` },
+    { name: 'death',       path: `${CLIP_DIR}/looter/death.glb` },
+  ],
+  repairWorker: [
+    { name: 'idle',        path: `${CLIP_DIR}/repair_worker/idle.glb` },
+    { name: 'walk',        path: `${CLIP_DIR}/repair_worker/walk.glb` },
+    { name: 'run',         path: `${CLIP_DIR}/repair_worker/run.glb` },
+    { name: 'repair_loop', path: `${CLIP_DIR}/repair_worker/repair_loop.glb` },
+    { name: 'stand_up',    path: `${CLIP_DIR}/repair_worker/stand_up.glb` },
+  ],
+  cableThief: [
+    { name: 'run',   path: `${CLIP_DIR}/cable_thief/run.glb` },
+    { name: 'climb', path: `${CLIP_DIR}/cable_thief/climb.glb` },
+    { name: 'steal', path: `${CLIP_DIR}/cable_thief/steal.glb` },
+    { name: 'death', path: `${CLIP_DIR}/cable_thief/death.glb` },
+  ],
+  vandal: [
+    { name: 'walk',         path: `${CLIP_DIR}/vandal/walk.glb` },
+    { name: 'heavy_attack', path: `${CLIP_DIR}/vandal/heavy_attack.glb` },
+    { name: 'attack',       path: `${CLIP_DIR}/vandal/heavy_attack.glb` },
+    { name: 'death',        path: `${CLIP_DIR}/vandal/death.glb` },
   ],
 };
 
