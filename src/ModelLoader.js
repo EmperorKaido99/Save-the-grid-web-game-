@@ -22,6 +22,7 @@ const CLIP_DIR = 'assets/models/characters';
 const ANIMATIONS = {
   combatWorker: [
     { name: 'idle',     path: `${CLIP_DIR}/combat_worker/idle.glb` },
+    { name: 'walk',     path: `${CLIP_DIR}/combat_worker/pistol_walk.glb` },
     { name: 'run',      path: `${CLIP_DIR}/combat_worker/run.glb` },
     { name: 'aim_idle', path: `${CLIP_DIR}/combat_worker/aim_idle.glb` },
     { name: 'aim_walk', path: `${CLIP_DIR}/combat_worker/aim_walk.glb` },

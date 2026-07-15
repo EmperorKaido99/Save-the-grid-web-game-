@@ -1,0 +1,16 @@
+node_modules/
+.git/
+.claude/
+.vercel/
+assets/mixamo-raw/
+*.fbx
+*.FBX
+*.obj
+*.OBJ
+new folder/
+3d ref model/player/
+3d ref model/ui-icons/
+assets/models/characters/repair_worker/textures/
+assets/models/characters/repair_worker/high_visibility_orange_worker.glb
+assets/models/characters/repair_worker/Worker Fuse.obj
+assets/ui/hud-reference.png
