@@ -31,7 +31,7 @@ const ANIMATIONS = {
   looter: [
     { name: 'walk',        path: `${CLIP_DIR}/looter/walk.glb` },
     { name: 'break_fence', path: `${CLIP_DIR}/looter/break_fence.glb` },
-    { name: 'attack',      path: `${CLIP_DIR}/looter/break_fence.glb` },
+    { name: 'attack',      path: `${CLIP_DIR}/looter/attack.glb` },
     { name: 'death',       path: `${CLIP_DIR}/looter/death.glb` },
   ],
   repairWorker: [
@@ -70,7 +70,7 @@ const FIT = {
   // (-Z) by default. DefenseManager also aims it at targets when firing.
   turret:       { height: 2.6, rotateY: Math.PI },
   fence:        { height: 2.5 },
-  powerStation: { height: 20 },
+  powerStation: { height: 20, rotateY: Math.PI },
 };
 
 class ModelLoaderSingleton {

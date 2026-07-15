@@ -275,7 +275,22 @@ export class EnemyManager {
 
       if (dist > 1.5) {
         dir.normalize();
-        e.group.position.addScaledVector(dir, e.def.speed * dt);
+        const step = e.def.speed * dt;
+        const nextPos = e.group.position.clone().addScaledVector(dir, step);
+
+        // Station collision — enemies must path around the building
+        const toStation = new THREE.Vector2(nextPos.x - station.position.x,
+                                            nextPos.z - station.position.z);
+        const stationDist = toStation.length();
+        const stationCollisionRadius = 10; // building footprint
+        if (stationDist < stationCollisionRadius) {
+          // Deflect: slide along the tangent of the station's collision circle
+          toStation.normalize();
+          nextPos.x = station.position.x + toStation.x * stationCollisionRadius;
+          nextPos.z = station.position.z + toStation.y * stationCollisionRadius;
+        }
+
+        e.group.position.copy(nextPos);
         e.group.rotation.y = Math.atan2(-dir.x, -dir.z);
       } else {
         // In range — attack
